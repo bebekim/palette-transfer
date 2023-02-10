@@ -303,27 +303,15 @@ class PaletteTransfer():
     
 def main():
     args = build_argument_parser()
-    # source_image = cv2.imread(args["source"], cv2.COLOR_BGR2RGB)
-    src = get_image(args["source"])
-    # plt.imshow(src)
-    # plt.show()
-    tgt = get_image(args["target"])
-    # plt.imshow(tgt)
-    # plt.show()
     k_colors = args["color"]
+    src = get_image(args["source"])
+    tgt = get_image(args["target"])
+
     palette_reduced = KMeansReducedPalette(k_colors)
     palette_reduced.fit(src)
     palette_reducecd_visualised = visualize_palette(np.round(palette_reduced.kmeans.cluster_centers_).astype(np.uint8), scale=32)
     source_folder = os.path.dirname(args["source"])
     palette_reducecd_visualised.save(os.path.join(source_folder, "palette_src.png"))
-
-    
-    # tgt_recolor = palette_reduced.recolor(tgt)
-    # plt.imshow(tgt_recolor)
-    # plt.show()
-    # tgt_folder = os.path.dirname(args["target"])
-    # cv2.imwrite(os.path.join(tgt_folder, "tgt_recolor.png"), tgt_recolor)
-    
     
     tgt_recolor = palette_reduced.recolor(tgt)
     tgt_folder = os.path.dirname(args["target"])
