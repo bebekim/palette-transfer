@@ -318,10 +318,17 @@ def main():
     palette_reducecd_visualised.save(os.path.join(source_folder, "palette_src.png"))
 
     
+    # tgt_recolor = palette_reduced.recolor(tgt)
+    # plt.imshow(tgt_recolor)
+    # plt.show()
+    # tgt_folder = os.path.dirname(args["target"])
+    # cv2.imwrite(os.path.join(tgt_folder, "tgt_recolor.png"), tgt_recolor)
+    
+    
     tgt_recolor = palette_reduced.recolor(tgt)
-    plt.imshow(tgt_recolor)
-    plt.show()
     tgt_folder = os.path.dirname(args["target"])
+    file_path = os.path.join(tgt_folder, "tgt_recolor.png")
+    cv2.imwrite(file_path, cv2.cvtColor(tgt_recolor, cv2.COLOR_RGB2BGR))
 
 if __name__=="__main__":
     main()
