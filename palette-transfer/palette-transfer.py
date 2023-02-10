@@ -8,7 +8,8 @@ from sklearn.neighbors import NearestNeighbors
 import dask.array as da
 import numpy as np
 import matplotlib.pyplot as plt
-
+from helpers import build_argument_parser, visualize_palette
+import cv2
 
 class KMeansReducedPalette:
     ''' The K-means reduced palette class.
@@ -296,10 +297,26 @@ class EntirePalette():
 class PaletteTransfer():
     pass
 
+
+
+
     
 def main():
-    source_image = io.imread('data/monet.jpg')    
+    args = build_argument_parser()
+    source_image = cv2.imread(args["source"], cv2.COLOR_BGR2RGB)
+    src = np.array(source_image)[:, :, :3]
+    plt.imshow(src)
+    plt.show()
+    target_image = cv2.imread(args["target"], cv2.COLOR_BGR2RGB)
+    # plt.imshow(target_image)
+    # plt.show()
+    k_colors = args["color"]
+    palette_a = KMeansReducedPalette(k_colors)
+    palette_a.fit(src)
+    palette_visualised = visualize_palette(np.round(palette_a.kmeans.cluster_centers_).astype(np.uint8), scale=32)
+    palette_visualised.save("palette.png")
     
+
 
 if __name__=="__main__":
     main()

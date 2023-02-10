@@ -71,6 +71,7 @@ instance/
 
 # data
 data/
+*.png
 
 # Sphinx documentation
 docs/_build/
