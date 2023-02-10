@@ -1,6 +1,6 @@
 import math
 import os
-from PIL import Image
+# from PIL import Image
 from dask.diagnostics import ProgressBar
 from imageio import imread
 from sklearn.cluster import KMeans
@@ -8,7 +8,7 @@ from sklearn.neighbors import NearestNeighbors
 import dask.array as da
 import numpy as np
 import matplotlib.pyplot as plt
-from helpers import build_argument_parser, visualize_palette
+from helpers import build_argument_parser, visualize_palette, get_image
 import cv2
 
 class KMeansReducedPalette:
@@ -303,20 +303,25 @@ class PaletteTransfer():
     
 def main():
     args = build_argument_parser()
-    source_image = cv2.imread(args["source"], cv2.COLOR_BGR2RGB)
-    src = np.array(source_image)[:, :, :3]
-    plt.imshow(src)
-    plt.show()
-    target_image = cv2.imread(args["target"], cv2.COLOR_BGR2RGB)
-    # plt.imshow(target_image)
+    # source_image = cv2.imread(args["source"], cv2.COLOR_BGR2RGB)
+    src = get_image(args["source"])
+    # plt.imshow(src)
+    # plt.show()
+    tgt = get_image(args["target"])
+    # plt.imshow(tgt)
     # plt.show()
     k_colors = args["color"]
-    palette_a = KMeansReducedPalette(k_colors)
-    palette_a.fit(src)
-    palette_visualised = visualize_palette(np.round(palette_a.kmeans.cluster_centers_).astype(np.uint8), scale=32)
-    palette_visualised.save("palette.png")
-    
+    palette_reduced = KMeansReducedPalette(k_colors)
+    palette_reduced.fit(src)
+    palette_reducecd_visualised = visualize_palette(np.round(palette_reduced.kmeans.cluster_centers_).astype(np.uint8), scale=32)
+    source_folder = os.path.dirname(args["source"])
+    palette_reducecd_visualised.save(os.path.join(source_folder, "palette_src.png"))
 
+    
+    tgt_recolor = palette_reduced.recolor(tgt)
+    plt.imshow(tgt_recolor)
+    plt.show()
+    tgt_folder = os.path.dirname(args["target"])
 
 if __name__=="__main__":
     main()

@@ -1,6 +1,8 @@
 import argparse
 from PIL import Image
 import numpy as np
+import cv2
+
 
 def build_argument_parser() -> dict:
     ap = argparse.ArgumentParser()
@@ -11,6 +13,34 @@ def build_argument_parser() -> dict:
     ap.add_argument("-t", "--target", required=True, help="path to reference image")
     ap.add_argument("-o", "--output", required=False, help="path to output directory")
     return vars(ap.parse_args())
+
+
+def read_image(path: str) -> np.ndarray:
+    '''Reads an image from a given path.
+
+    Args
+    ---
+        path (str): the path to the image.
+    '''
+    return np.array(Image.open(path))
+
+
+def get_relevant_filepaths(directory, acceptable_formats):
+    try:
+        all_files = os.listdir(directory)
+        if not all_files:
+            raise Exception("No files found in directory: {}".format(directory))
+        relevant_files = [f for f in all_files if any(f.endswith(format) for format in acceptable_formats)]
+        if not relevant_files:
+            raise Exception("No files with the specified formats found in directory: {}".format(directory))
+    except Exception as e:
+        print(e)
+
+    file_paths = []
+    for file in relevant_files:
+        file_path = os.path.join(directory, file)
+        file_paths.append(file_path)
+    return file_paths
 
 
 def closest_rect(n):
@@ -59,6 +89,12 @@ def visualize_palette(palette, scale=0):
         return im.resize((scale*im.width, scale*im.height), Image.NEAREST)
 
     return im
+
+def get_image(filename: str):
+    image= cv2.imread(filename)
+    img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    return np.array(img)[:, :, :3]
+    
 
 
 if __name__ == "__main__":
