@@ -125,9 +125,11 @@ def invert_image(image, axis=0):
 
 
 def split_image(image, image_name, tile_dim, output_dir, return_tile_dim=None):
+    # convert image to BGR
+    img = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     # Get image dimensions
     rows, cols = tile_dim
-    height, width, _ = image.shape
+    height, width, _ = img.shape
 
     # Ensure return_tile_dim is valid
     if return_tile_dim is not None:
@@ -151,7 +153,7 @@ def split_image(image, image_name, tile_dim, output_dir, return_tile_dim=None):
             end_y = (row + 1) * tile_height
 
             # Extract the tile using cv2.rectangle
-            tile = image[start_y:end_y, start_x:end_x]
+            tile = img[start_y:end_y, start_x:end_x]
 
             # Save the tile to the output directory with the filename format 'filename_{row}_{column}.jpg'
             filename = f'{image_name}_{row}_{col}.jpg'

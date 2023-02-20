@@ -310,8 +310,8 @@ def main():
     print(f"Splitting images into tiles...")
 
     # return_src_tile_path = split_image(src, image_name="src", tile_dim=(4, 6), output_dir=temp_folder_path, return_tile_dim=(0, 0))    
-    return_src_tile_path = split_image(src, image_name="src", tile_dim=(4, 6), output_dir=temp_folder_path)
-    return_tgt_tile_path = split_image(tgt, image_name="tgt", tile_dim=(4, 6), output_dir=temp_folder_path)
+    return_src_tile_path = split_image(src, image_name="src", tile_dim=(4, 6), output_dir=temp_folder_path, return_tile_dim=(0, 0))
+    return_tgt_tile_path = split_image(tgt, image_name="tgt", tile_dim=(4, 6), output_dir=temp_folder_path, return_tile_dim=(0, 0))
     # print a message indicating the folder name
     # print the return_src_tile_path
     print(f"Source tiles saved in {return_src_tile_path}")
@@ -341,7 +341,6 @@ def main():
     # cv2.imwrite(file_path, cv2.cvtColor(tgt_recolor, cv2.COLOR_RGB2BGR))
 
     # delete the folder and its contents
-    # shutil.rmtree(temp_folder_path)
 
 
 if __name__=="__main__":
