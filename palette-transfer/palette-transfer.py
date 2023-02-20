@@ -1,15 +1,16 @@
 import math
 import os
 # from PIL import Image
+# from imageio import imread
 from dask.diagnostics import ProgressBar
-from imageio import imread
 from sklearn.cluster import KMeans
 from sklearn.neighbors import NearestNeighbors
 import dask.array as da
 import numpy as np
 import matplotlib.pyplot as plt
-from helpers import build_argument_parser, visualize_palette, get_image
 import cv2
+import shutil
+from helpers import build_argument_parser, get_image, copy_files_to_temp_folder, split_image
 
 class KMeansReducedPalette:
     ''' The K-means reduced palette class.
@@ -292,12 +293,6 @@ class EntirePalette():
         
         image_recolored = np.array([colormap[tuple(rgb)] for rgb in image])
         return image_recolored.reshape(image_shape).astype(np.uint8)
-    
-    
-class PaletteTransfer():
-    pass
-
-
 
 
     
@@ -307,16 +302,32 @@ def main():
     src = get_image(args["source"])
     tgt = get_image(args["target"])
 
-    palette_reduced = KMeansReducedPalette(k_colors)
-    palette_reduced.fit(src)
-    palette_reducecd_visualised = visualize_palette(np.round(palette_reduced.kmeans.cluster_centers_).astype(np.uint8), scale=32)
-    source_folder = os.path.dirname(args["source"])
-    palette_reducecd_visualised.save(os.path.join(source_folder, "palette_src.png"))
+    temp_folder_path, temp_folder_name = copy_files_to_temp_folder(args["source"], args["target"])
+    print(f"Files copied into {temp_folder_name}")
+    print(f"Folder path: {temp_folder_path}")
+    print(f"Splitting images into tiles...")
+    return_src_tile_path = split_image(src, image_name="src", tile_dim=(4, 6), output_dir=temp_folder_path, return_tile_dim=(0, 0))
+    return_tgt_tile_path = split_image(tgt, image_name="tgt", tile_dim=(4, 6), output_dir=temp_folder_path, return_tile_dim=(0, 0))
+    # print a message indicating the folder name
+    # print the return_src_tile_path
+    print(f"Source tiles saved in {return_src_tile_path}")
+    print(f"Target tiles saved in {return_tgt_tile_path}")
+
+    # palette reduction using k-means    
+    # palette_reduced = KMeansReducedPalette(k_colors)
+    # palette_reduced.fit(src)
+    # palette_reducecd_visualised = visualize_palette(np.round(palette_reduced.kmeans.cluster_centers_).astype(np.uint8), scale=32)
+    # source_folder = os.path.dirname(args["source"])
+    # palette_reducecd_visualised.save(os.path.join(source_folder, "palette_src.png"))
     
-    tgt_recolor = palette_reduced.recolor(tgt)
-    tgt_folder = os.path.dirname(args["target"])
-    file_path = os.path.join(tgt_folder, "tgt_recolor.png")
-    cv2.imwrite(file_path, cv2.cvtColor(tgt_recolor, cv2.COLOR_RGB2BGR))
+    # tgt_recolor = palette_reduced.recolor(tgt)
+    # tgt_folder = os.path.dirname(args["target"])
+    # file_path = os.path.join(tgt_folder, "tgt_recolor.png")
+    # cv2.imwrite(file_path, cv2.cvtColor(tgt_recolor, cv2.COLOR_RGB2BGR))
+
+    # delete the folder and its contents
+    # shutil.rmtree(temp_folder_path)
+
 
 if __name__=="__main__":
     main()

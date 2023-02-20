@@ -2,6 +2,11 @@ import argparse
 from PIL import Image
 import numpy as np
 import cv2
+import os
+import shutil
+import tempfile
+import string
+import random
 
 
 def build_argument_parser() -> dict:
@@ -9,21 +14,43 @@ def build_argument_parser() -> dict:
     image_group = ap.add_mutually_exclusive_group(required=True)
     image_group.add_argument("-s", "--source", help="path to a single input image")
     image_group.add_argument("-d", "--directory", help="path to directory of images")
-    ap.add_argument("-c", "--color", required=True, type = int, help="color to transfer (e.g. red, green, blue, etc.)")
+    ap.add_argument("-c", "--color", required=False, type = int, help="color to transfer (e.g. red, green, blue, etc.)")
     ap.add_argument("-t", "--target", required=True, help="path to reference image")
     ap.add_argument("-o", "--output", required=False, help="path to output directory")
     return vars(ap.parse_args())
 
 
-def read_image(path: str) -> np.ndarray:
-    '''Reads an image from a given path.
+def create_folder(folder_name: str):
+    if os.path.exists(folder_name):
+        shutil.rmtree(folder_name)
+    os.mkdir(folder_name)
 
-    Args
-    ---
-        path (str): the path to the image.
-    '''
-    return np.array(Image.open(path))
 
+def copy_files_to_temp_folder(file1, file2):
+    # get the directory where the Python script is run
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    while True:
+        # generate a random folder name
+        folder_name = ''.join(random.choices(string.ascii_lowercase, k=10))
+        folder_path = os.path.join(script_dir, folder_name)
+        if not os.path.exists(folder_path):
+            # create the folder if it doesn't exist
+            os.makedirs(folder_path)
+            break
+
+    # copy the files into the folder
+    shutil.copy(file1, folder_path)
+    shutil.copy(file2, folder_path)
+
+    return folder_path, folder_name
+
+
+def get_image(filename: str):
+    image= cv2.imread(filename)
+    img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    return np.array(img)[:, :, :3]
+    
 
 def get_relevant_filepaths(directory, acceptable_formats):
     try:
@@ -90,12 +117,52 @@ def visualize_palette(palette, scale=0):
 
     return im
 
-def get_image(filename: str):
-    image= cv2.imread(filename)
-    img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    return np.array(img)[:, :, :3]
     
+def invert_image(image, axis=0):
+    return cv2.flip(image, axis)
 
 
-if __name__ == "__main__":
+def split_image(image, image_name, tile_dim, output_dir, return_tile_dim=None):
+    # Get image dimensions
+    rows, cols = tile_dim
+    height, width, _ = image.shape
+
+    # Ensure return_tile_dim is valid
+    if return_tile_dim is not None:
+        row, col = return_tile_dim
+        if row >= rows or col >= cols:
+            raise ValueError("return_tile_dim must be less than tile_dim.")
+
+    # Calculate tile width and height
+    tile_width = width // cols
+    tile_height = height // rows
+
+    # Iterate through rows and cols
+    for row in range(rows):
+        for col in range(cols):
+            if return_tile_dim is not None and (row, col) != return_tile_dim:
+                continue
+            # Calculate the starting and ending x and y coordinates for the tile
+            start_x = col * tile_width
+            end_x = (col + 1) * tile_width
+            start_y = row * tile_height
+            end_y = (row + 1) * tile_height
+
+            # Extract the tile using cv2.rectangle
+            tile = image[start_y:end_y, start_x:end_x]
+
+            # Save the tile to the output directory with the filename format 'filename_{row}_{column}.jpg'
+            filename = f'{image_name}_{row}_{col}.jpg'
+            file_path = os.path.join(output_dir, filename)
+            cv2.imwrite(file_path, tile)
+
+            if return_tile_dim is not None and (row, col) == return_tile_dim:
+                return file_path
+      
+
+def main():
     args = build_argument_parser()
+
+    
+if __name__ == "__main__":
+    main()
