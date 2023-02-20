@@ -40,8 +40,10 @@ def copy_files_to_temp_folder(file1, file2):
             break
 
     # copy the files into the folder
-    shutil.copy(file1, folder_path)
-    shutil.copy(file2, folder_path)
+    src_file1 = os.path.join(folder_path, f"src_{os.path.basename(file1)}")
+    tgt_file2 = os.path.join(folder_path, f"tgt_{os.path.basename(file2)}")
+    shutil.copy(file1, src_file1)
+    shutil.copy(file2, tgt_file2)
 
     return folder_path, folder_name
 

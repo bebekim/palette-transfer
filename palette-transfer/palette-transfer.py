@@ -11,7 +11,9 @@ import matplotlib.pyplot as plt
 import cv2
 import shutil
 from helpers import build_argument_parser, get_image, copy_files_to_temp_folder, split_image
+from helpers import visualize_palette
 
+# Refer to https://www.youtube.com/watch?v=iU7cVd9LnFo for tutorial
 class KMeansReducedPalette:
     ''' The K-means reduced palette class.
 
@@ -55,7 +57,7 @@ class KMeansReducedPalette:
     def fit(self, image):
         ''' The fit function for the palette.
         
-        PPreprocesses the reference image and perform k-means clustering on the
+        Preprocesses the reference image and perform k-means clustering on the
         pixels. Then, find the distance of each pixel to the nearest centroid.
 
         Args
@@ -306,20 +308,33 @@ def main():
     print(f"Files copied into {temp_folder_name}")
     print(f"Folder path: {temp_folder_path}")
     print(f"Splitting images into tiles...")
-    return_src_tile_path = split_image(src, image_name="src", tile_dim=(4, 6), output_dir=temp_folder_path, return_tile_dim=(0, 0))
-    return_tgt_tile_path = split_image(tgt, image_name="tgt", tile_dim=(4, 6), output_dir=temp_folder_path, return_tile_dim=(0, 0))
+
+    # return_src_tile_path = split_image(src, image_name="src", tile_dim=(4, 6), output_dir=temp_folder_path, return_tile_dim=(0, 0))    
+    return_src_tile_path = split_image(src, image_name="src", tile_dim=(4, 6), output_dir=temp_folder_path)
+    return_tgt_tile_path = split_image(tgt, image_name="tgt", tile_dim=(4, 6), output_dir=temp_folder_path)
     # print a message indicating the folder name
     # print the return_src_tile_path
     print(f"Source tiles saved in {return_src_tile_path}")
     print(f"Target tiles saved in {return_tgt_tile_path}")
-
-    # palette reduction using k-means    
-    # palette_reduced = KMeansReducedPalette(k_colors)
-    # palette_reduced.fit(src)
-    # palette_reducecd_visualised = visualize_palette(np.round(palette_reduced.kmeans.cluster_centers_).astype(np.uint8), scale=32)
-    # source_folder = os.path.dirname(args["source"])
-    # palette_reducecd_visualised.save(os.path.join(source_folder, "palette_src.png"))
     
+    # src_tile = get_image(return_src_tile_path)
+    # tgt_tile = get_image(return_tgt_tile_path)
+    
+    # # palette reduction using k-means    
+    # palette_reduced = KMeansReducedPalette(k_colors)
+    # palette_reduced.fit(src_tile)
+    # palette_reducecd_visualised = visualize_palette(np.round(palette_reduced.kmeans.cluster_centers_).astype(np.uint8), scale=32)
+    # # source_folder = os.path.dirname(args["source"])
+    # palette_reducecd_visualised.save(os.path.join(temp_folder_path, "palette_src_tile.png"))
+
+
+    # palette_reduced = KMeansReducedPalette(k_colors)
+    # palette_reduced.fit(tgt_tile)
+    # palette_reducecd_visualised = visualize_palette(np.round(palette_reduced.kmeans.cluster_centers_).astype(np.uint8), scale=32)
+    # # source_folder = os.path.dirname(args["source"])
+    # palette_reducecd_visualised.save(os.path.join(temp_folder_path, "palette_tgt_tile.png"))
+
+
     # tgt_recolor = palette_reduced.recolor(tgt)
     # tgt_folder = os.path.dirname(args["target"])
     # file_path = os.path.join(tgt_folder, "tgt_recolor.png")
