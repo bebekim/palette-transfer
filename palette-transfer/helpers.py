@@ -14,9 +14,9 @@ def build_argument_parser() -> dict:
     image_group = ap.add_mutually_exclusive_group(required=True)
     image_group.add_argument("-s", "--source", help="path to a single input image")
     image_group.add_argument("-d", "--directory", help="path to directory of images")
-    ap.add_argument("-c", "--color", required=False, type = int, help="color to transfer (e.g. red, green, blue, etc.)")
     ap.add_argument("-t", "--target", required=True, help="path to reference image")
     ap.add_argument("-o", "--output", required=False, help="path to output directory")
+    ap.add_argument("-c", "--color", required=False, type = int, help="color to transfer (e.g. red, green, blue, etc.)")
     return vars(ap.parse_args())
 
 
