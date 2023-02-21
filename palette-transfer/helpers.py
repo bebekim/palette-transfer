@@ -14,9 +14,9 @@ def build_argument_parser() -> dict:
     image_group = ap.add_mutually_exclusive_group(required=True)
     image_group.add_argument("-s", "--source", help="path to a single input image")
     image_group.add_argument("-d", "--directory", help="path to directory of images")
-    ap.add_argument("-c", "--color", required=False, type = int, help="color to transfer (e.g. red, green, blue, etc.)")
     ap.add_argument("-t", "--target", required=True, help="path to reference image")
     ap.add_argument("-o", "--output", required=False, help="path to output directory")
+    ap.add_argument("-c", "--color", required=False, type = int, help="color to transfer (e.g. red, green, blue, etc.)")
     return vars(ap.parse_args())
 
 
@@ -48,11 +48,24 @@ def copy_files_to_temp_folder(file1, file2):
     return folder_path, folder_name
 
 
-def get_image(filename: str):
-    image= cv2.imread(filename)
-    img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    return np.array(img)[:, :, :3]
-    
+def get_image(filename: str, color_space: str = "BGR"):
+    image = cv2.imread(filename)
+    if color_space == "BGR":
+        # Keep the original BGR color space of the image
+        return np.array(image)[:, :, :3]
+    elif color_space == "RGB":
+        # Convert the image to RGB color space
+        return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    elif color_space == "LAB":
+        # Convert the image to LAB color space
+        return cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+    elif color_space == "HSV":
+        # Convert the image to HSV color space
+        return cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    else:
+        # Raise an error if an invalid color space is provided
+        raise ValueError("Invalid color space provided")    
+
 
 def get_relevant_filepaths(directory, acceptable_formats):
     try:
