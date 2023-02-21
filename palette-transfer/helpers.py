@@ -48,11 +48,24 @@ def copy_files_to_temp_folder(file1, file2):
     return folder_path, folder_name
 
 
-def get_image(filename: str):
-    image= cv2.imread(filename)
-    img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    return np.array(img)[:, :, :3]
-    
+def get_image(filename: str, color_space: str = "BGR"):
+    image = cv2.imread(filename)
+    if color_space == "BGR":
+        # Keep the original BGR color space of the image
+        return np.array(image)[:, :, :3]
+    elif color_space == "RGB":
+        # Convert the image to RGB color space
+        return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    elif color_space == "LAB":
+        # Convert the image to LAB color space
+        return cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+    elif color_space == "HSV":
+        # Convert the image to HSV color space
+        return cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    else:
+        # Raise an error if an invalid color space is provided
+        raise ValueError("Invalid color space provided")    
+
 
 def get_relevant_filepaths(directory, acceptable_formats):
     try:

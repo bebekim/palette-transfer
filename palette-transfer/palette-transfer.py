@@ -301,8 +301,8 @@ class EntirePalette():
 def main():
     args = build_argument_parser()
     k_colors = args["color"]
-    src = get_image(args["source"])
-    tgt = get_image(args["target"])
+    src = get_image(args["source"], color_space="RGB")
+    tgt = get_image(args["target"], color_space="RGB")
 
     temp_folder_path, temp_folder_name = copy_files_to_temp_folder(args["source"], args["target"])
     print(f"Files copied into {temp_folder_name}")
