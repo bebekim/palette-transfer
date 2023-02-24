@@ -48,8 +48,8 @@ def copy_files_to_temp_folder(file1, file2):
     return folder_path, folder_name
 
 
-def get_image(filename: str, color_space: str = "BGR"):
-    image = cv2.imread(filename)
+def get_image(filepath: str, color_space: str = "BGR"):
+    image = cv2.imread(filepath)
     if color_space == "BGR":
         # Keep the original BGR color space of the image
         return np.array(image)[:, :, :3]

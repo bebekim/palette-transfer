@@ -301,6 +301,12 @@ class EntirePalette():
 def main():
     args = build_argument_parser()
     k_colors = args["color"]
+    print(os.getcwd())
+    print(f"Source image: {args['source']}")
+    print(os.path.isfile(args["source"]))
+    print(f"Target image: {args['target']}")
+    print(os.path.isfile(args["target"]))
+    
     src = get_image(args["source"], color_space="RGB")
     tgt = get_image(args["target"], color_space="RGB")
 
