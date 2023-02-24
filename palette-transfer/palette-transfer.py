@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import cv2
 import shutil
 from helpers import build_argument_parser, get_image, copy_files_to_temp_folder, split_image
+from helpers import get_unique_colors, get_image_stats
 from helpers import visualize_palette
 
 # Refer to https://www.youtube.com/watch?v=iU7cVd9LnFo for tutorial
@@ -267,10 +268,13 @@ class EntirePalette():
         ---
             numpy.ndarray: the recolored image.
         '''
+        # 1) Keep the shape of the input image and preprocess.
         image_shape = image.shape
         image = self._preprocess(image)
+        #  2) Convert the unique pixels array into a dask array and similarly for the input image.
         image_colors = np.unique(image, axis=0)
 
+        #  3) Perform the distance calculation between every pair of pixels using the color distance.
         self_da = da.from_array(
             self.source_pixels.astype(np.long), chunks=(self.chunk_size, 3)
         )
@@ -297,15 +301,19 @@ class EntirePalette():
         return image_recolored.reshape(image_shape).astype(np.uint8)
 
 
+
+
+
+
     
 def main():
     args = build_argument_parser()
     k_colors = args["color"]
-    print(os.getcwd())
-    print(f"Source image: {args['source']}")
-    print(os.path.isfile(args["source"]))
-    print(f"Target image: {args['target']}")
-    print(os.path.isfile(args["target"]))
+    # print(os.getcwd())
+    # print(f"Source image: {args['source']}")
+    # print(os.path.isfile(args["source"]))
+    # print(f"Target image: {args['target']}")
+    # print(os.path.isfile(args["target"]))
     
     src = get_image(args["source"], color_space="RGB")
     tgt = get_image(args["target"], color_space="RGB")
@@ -316,15 +324,21 @@ def main():
     print(f"Splitting images into tiles...")
 
     # return_src_tile_path = split_image(src, image_name="src", tile_dim=(4, 6), output_dir=temp_folder_path, return_tile_dim=(0, 0))    
-    return_src_tile_path = split_image(src, image_name="src", tile_dim=(4, 6), output_dir=temp_folder_path, return_tile_dim=(0, 0))
-    return_tgt_tile_path = split_image(tgt, image_name="tgt", tile_dim=(4, 6), output_dir=temp_folder_path, return_tile_dim=(0, 0))
+    src_tile_path = split_image(src, image_name="src", tile_dim=(4, 6), output_dir=temp_folder_path, return_tile_dim=(0, 0))
+    tgt_tile_path = split_image(tgt, image_name="tgt", tile_dim=(4, 6), output_dir=temp_folder_path, return_tile_dim=(0, 0))
     # print a message indicating the folder name
     # print the return_src_tile_path
-    print(f"Source tiles saved in {return_src_tile_path}")
-    print(f"Target tiles saved in {return_tgt_tile_path}")
+    print(f"Source tiles saved in {src_tile_path}")
+    # print(f"Target tiles saved in {return_tgt_tile_path}")
     
     # src_tile = get_image(return_src_tile_path)
     # tgt_tile = get_image(return_tgt_tile_path)
+    
+    # get the unique colors and distribution in the source image
+    src_tile_counts = get_unique_colors(src_tile_path, color_space="LAB")
+    src_height, src_width, src_pixels, src_unique_colors, src_ch1_mean, src_ch1_std, src_ch2_mean, src_ch2_std, src_ch3_mean, src_ch3_std = get_image_stats(src_tile_path, color_space="LAB")
+    tgt_tile_counts = get_unique_colors(tgt_tile_path, color_space="LAB")
+    tgt_height, tgt_width, tgt_pixels, tgt_unique_colors, tgt_ch1_mean, tgt_ch1_std, tgt_ch2_mean, tgt_ch2_std, tgt_ch3_mean, tgt_ch3_std = get_image_stats(tgt_tile_path, color_space="LAB")
     
     # # palette reduction using k-means    
     # palette_reduced = KMeansReducedPalette(k_colors)
@@ -347,6 +361,7 @@ def main():
     # cv2.imwrite(file_path, cv2.cvtColor(tgt_recolor, cv2.COLOR_RGB2BGR))
 
     # delete the folder and its contents
+    shutil.rmtree(temp_folder_path)
 
 
 if __name__=="__main__":

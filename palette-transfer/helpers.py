@@ -47,6 +47,9 @@ def copy_files_to_temp_folder(file1, file2):
 
     return folder_path, folder_name
 
+def delete_folder_and_contents(folder_path: str):
+    shutil.rmtree(folder_path)
+
 
 def get_image(filepath: str, color_space: str = "BGR"):
     image = cv2.imread(filepath)
@@ -83,6 +86,43 @@ def get_relevant_filepaths(directory, acceptable_formats):
         file_path = os.path.join(directory, file)
         file_paths.append(file_path)
     return file_paths
+
+
+def get_unique_colors(filepath: str, color_space: str = "BGR"):
+    # Load the image using get_image function
+    image = get_image(filepath, color_space)
+
+    # Convert the image to 1D array of colors
+    colors = np.reshape(image, (-1, 3))
+
+    # Get the unique colors and their counts
+    unique_colors, counts = np.unique(colors, axis=0, return_counts=True)
+
+    # Convert the unique colors to tuples and create a dictionary of counts
+    color_counts = dict(zip(tuple(map(tuple, unique_colors)), counts))
+
+    return color_counts
+
+
+def get_image_stats(filepath: str, color_space: str = "BGR"):
+    # Load the image using get_image function
+    image = get_image(filepath, color_space)
+
+    # Get the height and width of the image
+    height, width = image.shape[:2]
+
+    # Get the number of pixels in the image
+    num_pixels = height * width
+
+    # Get the number of unique colors in the image
+    unique_colors = get_unique_colors(filepath, color_space)
+    num_unique_colors = len(unique_colors)
+    (ch1, ch2, ch3) = cv2.split(image)
+    (ch1_mean, ch1_std) = (np.mean(ch1), np.std(ch1))
+    (ch2_mean, ch2_std) = (np.mean(ch2), np.std(ch2))
+    (ch3_mean, ch3_std) = (np.mean(ch3), np.std(ch3))
+
+    return height, width, num_pixels, num_unique_colors, ch1_mean, ch1_std, ch2_mean, ch2_std, ch3_mean, ch3_std
 
 
 def closest_rect(n):
