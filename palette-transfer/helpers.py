@@ -1,3 +1,4 @@
+# palette-transfer/helpers.py
 import argparse
 from PIL import Image
 import numpy as np
@@ -8,17 +9,39 @@ import tempfile
 import string
 import random
 
-
 def build_argument_parser() -> dict:
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(description="Image color palette transfer tool")
+    
+    # Image input arguments
     image_group = ap.add_mutually_exclusive_group(required=True)
     image_group.add_argument("-s", "--source", help="path to a single input image")
     image_group.add_argument("-d", "--directory", help="path to directory of images")
     ap.add_argument("-t", "--target", required=True, help="path to reference image")
     ap.add_argument("-o", "--output", required=False, help="path to output directory")
-    ap.add_argument("-c", "--color", required=False, type = int, help="color to transfer (e.g. red, green, blue, etc.)")
+    
+    # Color transfer method and parameters
+    ap.add_argument("-m", "--method", required=False, default="all", 
+                    choices=["kmeans", "reinhard", "unique", "entire", "targeted", "all"],
+                    help="color transfer method to use: kmeans, reinhard, unique, entire, targeted, or all")
+    ap.add_argument("-c", "--color", required=False, type=int, default=8,
+                    help="number of colors in palette for k-means methods (default: 8)")
+    ap.add_argument("--color-space", required=False, choices=["RGB", "LAB"], default="RGB",
+                    help="color space for k-means clustering (default: RGB)")
+    
+    # Targeted transfer options
+    ap.add_argument("--skin-blend", required=False, type=float, default=0.9,
+                    help="blending factor for skin regions (0.0-1.0, default: 0.9)")
+    ap.add_argument("--hair-blend", required=False, type=float, default=0.5,
+                    help="blending factor for hair regions (0.0-1.0, default: 0.5)")
+    ap.add_argument("--bg-blend", required=False, type=float, default=0.3,
+                    help="blending factor for background (0.0-1.0, default: 0.3)")
+    
+    # Additional options
+    ap.add_argument("--random-walk", action="store_true", help="apply random walk effect to kmeans methods")
+    ap.add_argument("--walk-steps", required=False, type=int, default=5,
+                    help="number of steps for random walk effect (default: 5)")
+    
     return vars(ap.parse_args())
-
 
 def create_folder(folder_name: str):
     if os.path.exists(folder_name):
