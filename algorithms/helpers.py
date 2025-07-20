@@ -2,7 +2,6 @@
 import argparse
 from PIL import Image
 import numpy as np
-import cv2
 import os
 import shutil
 import tempfile
@@ -75,19 +74,23 @@ def delete_folder_and_contents(folder_path: str):
 
 
 def get_image(filepath: str, color_space: str = "BGR"):
-    image = cv2.imread(filepath)
+    image = Image.open(filepath).convert('RGB')
+    image_array = np.array(image)
+    
     if color_space == "BGR":
-        # Keep the original BGR color space of the image
-        return np.array(image)[:, :, :3]
+        # Convert RGB to BGR
+        return image_array[:, :, ::-1]
     elif color_space == "RGB":
-        # Convert the image to RGB color space
-        return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        # Keep RGB color space
+        return image_array
     elif color_space == "LAB":
-        # Convert the image to LAB color space
-        return cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+        # Convert RGB to LAB using PIL
+        lab_image = image.convert('LAB')
+        return np.array(lab_image)
     elif color_space == "HSV":
-        # Convert the image to HSV color space
-        return cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        # Convert RGB to HSV using PIL
+        hsv_image = image.convert('HSV')
+        return np.array(hsv_image)
     else:
         # Raise an error if an invalid color space is provided
         raise ValueError("Invalid color space provided")    
@@ -140,7 +143,7 @@ def get_image_stats(filepath: str, color_space: str = "BGR"):
     # Get the number of unique colors in the image
     unique_colors = get_unique_colors(filepath, color_space)
     num_unique_colors = len(unique_colors)
-    (ch1, ch2, ch3) = cv2.split(image)
+    (ch1, ch2, ch3) = (image[:,:,0], image[:,:,1], image[:,:,2])
     (ch1_mean, ch1_std) = (np.mean(ch1), np.std(ch1))
     (ch2_mean, ch2_std) = (np.mean(ch2), np.std(ch2))
     (ch3_mean, ch3_std) = (np.mean(ch3), np.std(ch3))
@@ -197,15 +200,18 @@ def visualize_palette(palette, scale=0):
 
     
 def invert_image(image, axis=0):
-    return cv2.flip(image, axis)
+    if axis == 0:
+        return np.flipud(image)
+    elif axis == 1:
+        return np.fliplr(image)
+    else:
+        return image
 
 
 def split_image(image, image_name, tile_dim, output_dir, return_tile_dim=None):
-    # convert image to BGR
-    img = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     # Get image dimensions
     rows, cols = tile_dim
-    height, width, _ = img.shape
+    height, width, _ = image.shape
 
     # Ensure return_tile_dim is valid
     if return_tile_dim is not None:
@@ -228,13 +234,14 @@ def split_image(image, image_name, tile_dim, output_dir, return_tile_dim=None):
             start_y = row * tile_height
             end_y = (row + 1) * tile_height
 
-            # Extract the tile using cv2.rectangle
-            tile = img[start_y:end_y, start_x:end_x]
+            # Extract the tile
+            tile = image[start_y:end_y, start_x:end_x]
 
             # Save the tile to the output directory with the filename format 'filename_{row}_{column}.jpg'
             filename = f'{image_name}_{row}_{col}.jpg'
             file_path = os.path.join(output_dir, filename)
-            cv2.imwrite(file_path, tile)
+            tile_image = Image.fromarray(tile)
+            tile_image.save(file_path)
 
             if return_tile_dim is not None and (row, col) == return_tile_dim:
                 return file_path
