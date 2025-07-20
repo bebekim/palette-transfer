@@ -1,0 +1,65 @@
+* TODO Items for Canva App
+
+** Single Flask Deployment Setup
+*** DONE Move Canva app build into Flask server structure
+Create integrated Flask app that serves both the Canva app and API endpoints
+- Remove Express backend dependency
+- Structure Flask to serve static files and API
+
+*** DONE Create Flask app.py with static file serving and API endpoints
+Implement complete Flask server with:
+- @app.route('/app.js') for serving built Canva app
+- @app.route('/api/v1/palette-transfer') for skin tone processing
+- Static file serving from dist/ directory
+
+*** DONE Analyze Express backend components for migration
+Critical analysis of what to REMOVE vs MIGRATE vs ADAPT:
+
+**** REMOVE (70% of Express code):
+- Fake demo logic: hardcoded Pexels images, simulated delays, in-memory queues
+- Demo database: JSON file storage (backend/database/database.ts)
+- Canva development tooling: HMR, ngrok, Canva CLI preview
+- All placeholder/simulation code marked as "NOT SUITABLE for production"
+
+**** MIGRATE (20% - Critical business logic):
+- JWT authentication middleware (utils/backend/jwt_middleware/)
+- Bearer token middleware patterns
+- API contract structure and endpoint definitions
+- Data model interfaces (ImageType, PaletteTransferResult, etc.)
+- Error handling patterns
+
+**** ADAPT (10% - Infrastructure patterns):
+- Server configuration concepts (HTTPS, health checks, CORS, logging)
+- Environment variable handling
+- Base server setup patterns
+
+**** Final Flask Architecture:
+- Delete ~70% of Express code (all demo/fake functionality)
+- Migrate authentication patterns and API contracts
+- Implement real business logic: user registration, billing, image processing
+- Single Flask app handles: static serving + API + authentication + business logic
+
+*** TODO Update build process to work with Flask deployment
+Ensure npm run build creates files in correct location for Flask serving
+
+*** TODO Test local Flask setup serving Canva app
+Verify workflow:
+1. npm run build
+2. python app.py
+3. Test app.js serving on localhost
+4. Test API endpoints
+
+*** TODO Configure for Railway deployment
+Set up Railway deployment configuration for single Flask app
+
+** API Integration
+*** TODO Update frontend endpoint to include v1 versioning
+Change paletteTransfer endpoint from "/api/palette-transfer" to "/api/v1/palette-transfer" to match Flask backend API versioning standards.
+
+File: src/api/api.ts
+Location: endpoints object
+
+** Future Enhancements
+*** TODO Add error handling for palette transfer failures
+*** TODO Implement loading states and progress indicators
+*** TODO Add image preview validation before upload
