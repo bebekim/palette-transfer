@@ -8,6 +8,7 @@ from helpers import build_argument_parser, get_image
 from kmeans_palette import KMeansReducedPalette, UniqueKMeansReducedPalette
 from reinhard_transfer import ReinhardColorTransfer
 from targeted_transfer import TargetedReinhardTransfer
+from skintone_transfer import SkinToneTransfer
 from entire_palette import EntirePalette
 
 
@@ -49,8 +50,55 @@ def main():
     Image.fromarray(src).save(src_path)
     Image.fromarray(tgt).save(tgt_path)
     
-    # [Keep existing code for other methods...]
-    
+    # Apply Skin-tone color transfer (skin pixels only from source)
+    if method in ["skintone", "all"]:
+        print("\nApplying Skin-tone color transfer...")
+        print(f"Skin blend: {skin_blend}, Hair blend: {hair_blend}, Background blend: {bg_blend}")
+
+        # Get skin detection bounds from args
+        skin_cr_low = args.get("skin_cr_low", 133)
+        skin_cr_high = args.get("skin_cr_high", 173)
+        skin_cb_low = args.get("skin_cb_low", 77)
+        skin_cb_high = args.get("skin_cb_high", 127)
+
+        skin_ycrcb_lower = (0, skin_cr_low, skin_cb_low)
+        skin_ycrcb_upper = (255, skin_cr_high, skin_cb_high)
+        print(f"Skin detection YCrCb bounds: Cr=[{skin_cr_low}, {skin_cr_high}], Cb=[{skin_cb_low}, {skin_cb_high}]")
+
+        skintone = SkinToneTransfer(
+            skin_blend_factor=skin_blend,
+            hair_region_blend_factor=hair_blend,
+            background_blend_factor=bg_blend,
+            skin_ycrcb_lower=skin_ycrcb_lower,
+            skin_ycrcb_upper=skin_ycrcb_upper
+        )
+        skintone.fit(src)
+        tgt_skintone = skintone.recolor(tgt)
+
+        # Save result
+        tgt_skintone_path = os.path.join(output_dir,
+            f"skintone_skin{skin_blend}_hair{hair_blend}_bg{bg_blend}_{os.path.basename(args['target'])}")
+        Image.fromarray(tgt_skintone).save(tgt_skintone_path)
+        print(f"Skin-tone recolored image saved to {tgt_skintone_path}")
+
+        # Save visualization of masks
+        if skintone.source_skin_mask is not None:
+            src_skin_vis = (skintone.source_skin_mask * 255).astype(np.uint8)
+            src_skin_mask_path = os.path.join(output_dir, f"source_skin_mask_{os.path.basename(args['source'])}")
+            Image.fromarray(src_skin_vis).save(src_skin_mask_path)
+
+        if skintone.target_skin_mask is not None:
+            tgt_skin_vis = (skintone.target_skin_mask * 255).astype(np.uint8)
+            tgt_skin_mask_path = os.path.join(output_dir, f"target_skin_mask_{os.path.basename(args['target'])}")
+            Image.fromarray(tgt_skin_vis).save(tgt_skin_mask_path)
+
+        if skintone.hair_region_mask is not None:
+            hair_vis = (skintone.hair_region_mask * 255).astype(np.uint8)
+            hair_mask_path = os.path.join(output_dir, f"skintone_hair_mask_{os.path.basename(args['target'])}")
+            Image.fromarray(hair_vis).save(hair_mask_path)
+
+        print(f"Mask visualizations saved to {output_dir}")
+
     # Apply Targeted Reinhard color transfer
     if method in ["targeted", "all"]:
         print("Applying Targeted Reinhard color transfer...")

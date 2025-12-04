@@ -19,9 +19,9 @@ def build_argument_parser() -> dict:
     ap.add_argument("-o", "--output", required=False, help="path to output directory")
     
     # Color transfer method and parameters
-    ap.add_argument("-m", "--method", required=False, default="all", 
-                    choices=["kmeans", "reinhard", "unique", "entire", "targeted", "all"],
-                    help="color transfer method to use: kmeans, reinhard, unique, entire, targeted, or all")
+    ap.add_argument("-m", "--method", required=False, default="all",
+                    choices=["kmeans", "reinhard", "unique", "entire", "targeted", "skintone", "all"],
+                    help="color transfer method to use: kmeans, reinhard, unique, entire, targeted, skintone, or all")
     ap.add_argument("-c", "--color", required=False, type=int, default=8,
                     help="number of colors in palette for k-means methods (default: 8)")
     ap.add_argument("--color-space", required=False, choices=["RGB", "LAB"], default="RGB",
@@ -34,7 +34,17 @@ def build_argument_parser() -> dict:
                     help="blending factor for hair regions (0.0-1.0, default: 0.5)")
     ap.add_argument("--bg-blend", required=False, type=float, default=0.3,
                     help="blending factor for background (0.0-1.0, default: 0.3)")
-    
+
+    # Skin detection YCrCb bounds (for skintone method)
+    ap.add_argument("--skin-cr-low", required=False, type=int, default=133,
+                    help="lower Cr bound for skin detection (default: 133, use ~120 for darker skin)")
+    ap.add_argument("--skin-cr-high", required=False, type=int, default=173,
+                    help="upper Cr bound for skin detection (default: 173, use ~180 for lighter skin)")
+    ap.add_argument("--skin-cb-low", required=False, type=int, default=77,
+                    help="lower Cb bound for skin detection (default: 77)")
+    ap.add_argument("--skin-cb-high", required=False, type=int, default=127,
+                    help="upper Cb bound for skin detection (default: 127, use ~140 for darker skin)")
+
     # Additional options
     ap.add_argument("--random-walk", action="store_true", help="apply random walk effect to kmeans methods")
     ap.add_argument("--walk-steps", required=False, type=int, default=5,
