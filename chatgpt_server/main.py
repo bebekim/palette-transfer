@@ -266,7 +266,7 @@ async def detect_skin_regions(
 
 
 # Create the ASGI app
-app = mcp.get_app()
+app = mcp.http_app()
 
 
 if __name__ == "__main__":
