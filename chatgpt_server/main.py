@@ -265,6 +265,111 @@ async def detect_skin_regions(
         }
 
 
+@mcp.tool()
+async def compare_before_after(
+    source_url: str,
+    target_url: str,
+    skin_blend: float = 0.9,
+    hair_blend: float = 0.5,
+    bg_blend: float = 0.3,
+    skin_cr_low: int = 133,
+    skin_cr_high: int = 173,
+    skin_cb_low: int = 77,
+    skin_cb_high: int = 127,
+) -> dict:
+    """
+    Create a side-by-side comparison of before and after skin tone transfer.
+
+    Returns the original target image alongside the transferred result
+    for easy visual comparison.
+
+    Args:
+        source_url: URL of the source image (skin tone to copy FROM)
+        target_url: URL of the target image (image to apply skin tone TO)
+        skin_blend: How much to apply transfer to skin (0.0-1.0)
+        hair_blend: How much to apply transfer to hair (0.0-1.0)
+        bg_blend: How much to apply transfer to background (0.0-1.0)
+        skin_cr_low: Lower Cr bound for skin detection
+        skin_cr_high: Upper Cr bound for skin detection
+        skin_cb_low: Lower Cb bound for skin detection
+        skin_cb_high: Upper Cb bound for skin detection
+
+    Returns:
+        Dictionary with comparison image and individual images
+    """
+    try:
+        # Fetch images
+        source_image = await fetch_image(source_url)
+        target_image = await fetch_image(target_url)
+
+        # Initialize transfer
+        transfer = SkinToneTransfer(
+            skin_blend_factor=skin_blend,
+            hair_region_blend_factor=hair_blend,
+            background_blend_factor=bg_blend,
+            skin_ycrcb_lower=(0, skin_cr_low, skin_cb_low),
+            skin_ycrcb_upper=(255, skin_cr_high, skin_cb_high),
+        )
+
+        # Perform transfer
+        transfer.fit(source_image)
+        result = transfer.recolor(target_image)
+
+        # Create side-by-side comparison
+        # Resize images to same height if needed
+        h1, w1 = target_image.shape[:2]
+        h2, w2 = result.shape[:2]
+
+        # Use the smaller height
+        target_height = min(h1, h2, 800)  # Cap at 800px for reasonable size
+
+        # Resize both to same height
+        scale1 = target_height / h1
+        scale2 = target_height / h2
+
+        new_w1 = int(w1 * scale1)
+        new_w2 = int(w2 * scale2)
+
+        target_resized = np.array(Image.fromarray(target_image).resize((new_w1, target_height)))
+        result_resized = np.array(Image.fromarray(result).resize((new_w2, target_height)))
+
+        # Add labels
+        # Create comparison with a small gap
+        gap = 10
+        comparison = np.ones((target_height, new_w1 + gap + new_w2, 3), dtype=np.uint8) * 255
+        comparison[:, :new_w1] = target_resized
+        comparison[:, new_w1 + gap:] = result_resized
+
+        response = {
+            "success": True,
+            "comparison_image": f"data:image/png;base64,{image_to_base64(comparison)}",
+            "before_image": f"data:image/png;base64,{image_to_base64(target_image)}",
+            "after_image": f"data:image/png;base64,{image_to_base64(result)}",
+            "source_skin_pixels": int(np.sum(transfer.source_skin_mask > 0.5)),
+            "target_skin_pixels": int(np.sum(transfer.target_skin_mask > 0.5)),
+            "transfer_stats": {
+                "source_lab_mean": {
+                    "L": float(transfer.source_mean[0]),
+                    "a": float(transfer.source_mean[1]),
+                    "b": float(transfer.source_mean[2]),
+                },
+                "source_lab_std": {
+                    "L": float(transfer.source_std[0]),
+                    "a": float(transfer.source_std[1]),
+                    "b": float(transfer.source_std[2]),
+                },
+            },
+        }
+
+        return response
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+        }
+
+
 # Create the ASGI app
 app = mcp.http_app()
 
