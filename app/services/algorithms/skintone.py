@@ -12,9 +12,17 @@ This ensures that only skin-tone colors are used for the transfer,
 ignoring background, hair, and other non-skin regions in the source.
 """
 
+import time
 import numpy as np
 from PIL import Image, ImageFilter
 from scipy import ndimage
+
+
+def _log_time(start, label):
+    """Log elapsed time since start."""
+    elapsed = (time.time() - start) * 1000
+    print(f"[TIMING] {label}: {elapsed:.1f}ms")
+    return time.time()
 
 
 def rgb_to_ycrcb(rgb: np.ndarray) -> np.ndarray:
@@ -310,13 +318,18 @@ class SkinToneTransfer:
         ---
             image (numpy.ndarray): Source RGB image.
         """
+        t0 = time.time()
+        print(f"[TIMING] fit() started - image shape: {image.shape}")
+
         # Create skin mask for source image
         self.source_skin_mask, _ = self._create_skin_mask(image, expand_face=True)
+        t0 = _log_time(t0, "fit: create_skin_mask")
 
         # Get statistics from skin pixels only
         self.source_mean, self.source_std = self._get_skin_statistics(
             image, self.source_skin_mask
         )
+        t0 = _log_time(t0, "fit: get_skin_statistics")
 
         # Store source shape for reference
         self.source_shape = image.shape
@@ -339,14 +352,20 @@ class SkinToneTransfer:
         if self.source_mean is None or self.source_std is None:
             raise ValueError("You must call fit() before recolor()")
 
+        t0 = time.time()
+        print(f"[TIMING] recolor() started - image shape: {image.shape}")
+
         # Create skin mask for target image
         target_skin_mask_raw, self.hair_region_mask = self._create_skin_mask(image, expand_face=True)
+        t0 = _log_time(t0, "recolor: create_skin_mask")
 
         # Apply Gaussian blur for smooth blending
         self.target_skin_mask = gaussian_blur(target_skin_mask_raw, sigma=5)
+        t0 = _log_time(t0, "recolor: gaussian_blur skin_mask")
 
         # Get target skin statistics
         target_mean, target_std = self._get_skin_statistics(image, target_skin_mask_raw)
+        t0 = _log_time(t0, "recolor: get_skin_statistics")
 
         print(f"Target skin pixels: {np.sum(target_skin_mask_raw > 0.5)}")
         print(f"Target skin LAB mean: L={target_mean[0]:.1f}, a={target_mean[1]:.1f}, b={target_mean[2]:.1f}")
@@ -354,6 +373,7 @@ class SkinToneTransfer:
 
         # Convert target to LAB
         target_lab = rgb_to_lab(image).astype(np.float32)
+        t0 = _log_time(t0, "recolor: rgb_to_lab")
 
         # Apply Reinhard transfer to LAB channels
         result_lab = np.copy(target_lab)
@@ -363,10 +383,12 @@ class SkinToneTransfer:
             result_lab[:, :, i] = ((target_lab[:, :, i] - target_mean[i]) *
                                    (self.source_std[i] / target_std[i]) +
                                    self.source_mean[i])
+        t0 = _log_time(t0, "recolor: reinhard_transfer")
 
         # Clip and convert back to RGB
         result_lab = np.clip(result_lab, 0, 255).astype(np.uint8)
         full_transfer = lab_to_rgb(result_lab)
+        t0 = _log_time(t0, "recolor: lab_to_rgb")
 
         # Create background mask (areas that are not skin)
         background_mask = 1.0 - self.target_skin_mask
@@ -378,6 +400,7 @@ class SkinToneTransfer:
         result += (self.target_skin_mask[:, :, np.newaxis] *
                   (self.skin_blend_factor * full_transfer +
                    (1 - self.skin_blend_factor) * image))
+        t0 = _log_time(t0, "recolor: blend_skin")
 
         # Apply Gaussian blur to hair region mask
         if self.hair_region_mask is not None and np.sum(self.hair_region_mask) > 0:
@@ -390,17 +413,21 @@ class SkinToneTransfer:
             hair_height = image.shape[0] // 4
             self.hair_region_mask[:hair_height, :] = 1.0
             self.hair_region_mask = gaussian_blur(self.hair_region_mask, sigma=10)
+        t0 = _log_time(t0, "recolor: hair_region_mask")
 
         # Special handling for hair regions
         hair_region_exclusive = self.hair_region_mask * background_mask
         result += (hair_region_exclusive[:, :, np.newaxis] *
                   (self.hair_region_blend_factor * full_transfer +
                    (1 - self.hair_region_blend_factor) * image))
+        t0 = _log_time(t0, "recolor: blend_hair")
 
         # Blend remaining background regions
         remaining_bg = background_mask * (1.0 - hair_region_exclusive)
         result += (remaining_bg[:, :, np.newaxis] *
                   (self.background_blend_factor * full_transfer +
                    (1 - self.background_blend_factor) * image))
+        t0 = _log_time(t0, "recolor: blend_background")
 
+        print("[TIMING] recolor() complete")
         return np.clip(result, 0, 255).astype(np.uint8)
