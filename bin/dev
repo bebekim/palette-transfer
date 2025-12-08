@@ -1,0 +1,13 @@
+#!/bin/bash
+# ABOUTME: Development environment startup script for palette-transfer
+# ABOUTME: Starts Flask server with hot reload for local development
+
+export FLASK_ENV=development
+export FLASK_DEBUG=1
+
+echo "Starting Palette Transfer in DEVELOPMENT mode"
+echo "   Port: 8080"
+echo ""
+
+# Use uv to run Flask in development mode
+uv run flask --app app run --host=0.0.0.0 --port=8080 --debug

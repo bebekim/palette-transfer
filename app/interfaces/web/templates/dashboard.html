@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Palette Transfer{% endblock %}
+
+{% block extra_css %}
+<style>
+    .upload-area {
+        border: 2px dashed #ddd;
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color 0.2s;
+    }
+    .upload-area:hover { border-color: #3498db; }
+    .upload-area.dragover { border-color: #3498db; background: #f0f8ff; }
+    .image-preview {
+        max-width: 100%;
+        max-height: 300px;
+        margin-top: 1rem;
+        border-radius: 4px;
+    }
+    .result-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    .result-item {
+        text-align: center;
+    }
+    .result-item img {
+        max-width: 100%;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+    }
+    .controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    .slider-group { margin: 1rem 0; }
+    .slider-group input[type="range"] {
+        width: 100%;
+        padding: 0;
+    }
+    .loading {
+        display: none;
+        text-align: center;
+        padding: 2rem;
+    }
+    .loading.active { display: block; }
+    #result-container { display: none; }
+    #result-container.active { display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Transfer Dashboard</h1>
+
+<div class="card">
+    <h3>Upload Images</h3>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+        <div>
+            <label>Source (palette to copy)</label>
+            <div class="upload-area" id="source-upload">
+                <p>Click or drag image here</p>
+                <input type="file" id="source-input" accept="image/*" style="display: none;">
+                <img id="source-preview" class="image-preview" style="display: none;">
+            </div>
+        </div>
+        <div>
+            <label>Target (image to recolor)</label>
+            <div class="upload-area" id="target-upload">
+                <p>Click or drag image here</p>
+                <input type="file" id="target-input" accept="image/*" style="display: none;">
+                <img id="target-preview" class="image-preview" style="display: none;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Transfer Settings</h3>
+    <div class="controls">
+        <div class="form-group">
+            <label for="method">Method</label>
+            <select id="method">
+                <option value="skintone">Skin-Tone Transfer</option>
+                <option value="reinhard">Reinhard (Classic)</option>
+                <option value="hybrid">Hybrid</option>
+                <option value="optimized">Optimized</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="skintone-params">
+        <div class="controls">
+            <div class="slider-group">
+                <label>Skin Blend: <span id="skin-blend-val">0.9</span></label>
+                <input type="range" id="skin-blend" min="0" max="1" step="0.1" value="0.9">
+            </div>
+            <div class="slider-group">
+                <label>Hair Blend: <span id="hair-blend-val">0.5</span></label>
+                <input type="range" id="hair-blend" min="0" max="1" step="0.1" value="0.5">
+            </div>
+            <div class="slider-group">
+                <label>Background Blend: <span id="bg-blend-val">0.3</span></label>
+                <input type="range" id="bg-blend" min="0" max="1" step="0.1" value="0.3">
+            </div>
+        </div>
+    </div>
+
+    <div style="margin-top: 1.5rem;">
+        <button id="transfer-btn" class="btn">Transfer Palette</button>
+        <button id="compare-btn" class="btn btn-secondary">Compare All Methods</button>
+    </div>
+</div>
+
+<div class="loading" id="loading">
+    <p>Processing...</p>
+</div>
+
+<div class="card" id="result-container">
+    <h3>Result</h3>
+    <div id="result-content"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // File upload handling
+    function setupUpload(uploadId, inputId, previewId) {
+        const upload = document.getElementById(uploadId);
+        const input = document.getElementById(inputId);
+        const preview = document.getElementById(previewId);
+
+        upload.addEventListener('click', () => input.click());
+        upload.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            upload.classList.add('dragover');
+        });
+        upload.addEventListener('dragleave', () => upload.classList.remove('dragover'));
+        upload.addEventListener('drop', (e) => {
+            e.preventDefault();
+            upload.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                input.files = e.dataTransfer.files;
+                showPreview(input.files[0], preview);
+            }
+        });
+        input.addEventListener('change', () => {
+            if (input.files.length) showPreview(input.files[0], preview);
+        });
+    }
+
+    function showPreview(file, previewEl) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            previewEl.src = e.target.result;
+            previewEl.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+
+    setupUpload('source-upload', 'source-input', 'source-preview');
+    setupUpload('target-upload', 'target-input', 'target-preview');
+
+    // Slider value display
+    ['skin-blend', 'hair-blend', 'bg-blend'].forEach(id => {
+        const slider = document.getElementById(id);
+        const display = document.getElementById(id + '-val');
+        slider.addEventListener('input', () => display.textContent = slider.value);
+    });
+
+    // Show/hide skintone params
+    document.getElementById('method').addEventListener('change', (e) => {
+        document.getElementById('skintone-params').style.display =
+            e.target.value === 'skintone' ? 'block' : 'none';
+    });
+
+    // Transfer button
+    document.getElementById('transfer-btn').addEventListener('click', async () => {
+        const sourceInput = document.getElementById('source-input');
+        const targetInput = document.getElementById('target-input');
+
+        if (!sourceInput.files.length || !targetInput.files.length) {
+            alert('Please upload both source and target images');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('source', sourceInput.files[0]);
+        formData.append('target', targetInput.files[0]);
+        formData.append('method', document.getElementById('method').value);
+        formData.append('skin_blend', document.getElementById('skin-blend').value);
+        formData.append('hair_blend', document.getElementById('hair-blend').value);
+        formData.append('bg_blend', document.getElementById('bg-blend').value);
+
+        document.getElementById('loading').classList.add('active');
+        document.getElementById('result-container').classList.remove('active');
+
+        try {
+            const response = await fetch('/api/transfer', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                document.getElementById('result-content').innerHTML = `
+                    <div class="result-grid">
+                        <div class="result-item">
+                            <p><strong>Original</strong></p>
+                            <img src="${document.getElementById('target-preview').src}">
+                        </div>
+                        <div class="result-item">
+                            <p><strong>Result (${data.method})</strong></p>
+                            <img src="${data.result}">
+                            <p><small>${data.processing_time_ms}ms</small></p>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('result-container').classList.add('active');
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (err) {
+            alert('Request failed: ' + err.message);
+        } finally {
+            document.getElementById('loading').classList.remove('active');
+        }
+    });
+
+    // Compare button
+    document.getElementById('compare-btn').addEventListener('click', async () => {
+        const sourceInput = document.getElementById('source-input');
+        const targetInput = document.getElementById('target-input');
+
+        if (!sourceInput.files.length || !targetInput.files.length) {
+            alert('Please upload both source and target images');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('source', sourceInput.files[0]);
+        formData.append('target', targetInput.files[0]);
+
+        document.getElementById('loading').classList.add('active');
+        document.getElementById('result-container').classList.remove('active');
+
+        try {
+            const response = await fetch('/api/compare', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                let html = '<div class="result-grid">';
+                html += `<div class="result-item"><p><strong>Original</strong></p><img src="${data.results.original}"></div>`;
+
+                for (const [method, result] of Object.entries(data.results)) {
+                    if (method === 'original') continue;
+                    if (result.error) {
+                        html += `<div class="result-item"><p><strong>${method}</strong></p><p style="color:red;">${result.error}</p></div>`;
+                    } else {
+                        html += `<div class="result-item"><p><strong>${method}</strong></p><img src="${result.image}"><p><small>${result.time_ms}ms</small></p></div>`;
+                    }
+                }
+                html += '</div>';
+
+                document.getElementById('result-content').innerHTML = html;
+                document.getElementById('result-container').classList.add('active');
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (err) {
+            alert('Request failed: ' + err.message);
+        } finally {
+            document.getElementById('loading').classList.remove('active');
+        }
+    });
+</script>
+{% endblock %}

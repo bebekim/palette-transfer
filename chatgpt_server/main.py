@@ -17,6 +17,15 @@ import numpy as np
 from PIL import Image
 from pydantic import BaseModel, Field
 from fastmcp import FastMCP
+from mcp.types import ToolAnnotations
+
+# Tool annotations to hint these are safe, read-only operations
+SAFE_TOOL_ANNOTATIONS = ToolAnnotations(
+    readOnlyHint=True,      # Does not modify any data
+    destructiveHint=False,  # Not destructive
+    idempotentHint=True,    # Same input = same output
+    openWorldHint=True,     # Fetches external URLs
+)
 
 # Add algorithms to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'algorithms'))
@@ -118,7 +127,7 @@ def mask_to_base64(mask: np.ndarray) -> str:
     return base64.b64encode(buffer.getvalue()).decode('utf-8')
 
 
-@mcp.tool()
+@mcp.tool(annotations=SAFE_TOOL_ANNOTATIONS)
 async def transfer_skin_tone(
     source_url: str,
     target_url: str,
@@ -205,7 +214,7 @@ async def transfer_skin_tone(
         }
 
 
-@mcp.tool()
+@mcp.tool(annotations=SAFE_TOOL_ANNOTATIONS)
 async def detect_skin_regions(
     image_url: str,
     skin_cr_low: int = 133,
@@ -265,7 +274,7 @@ async def detect_skin_regions(
         }
 
 
-@mcp.tool()
+@mcp.tool(annotations=SAFE_TOOL_ANNOTATIONS)
 async def compare_before_after(
     source_url: str,
     target_url: str,

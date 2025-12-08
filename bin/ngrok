@@ -1,0 +1,21 @@
+#!/bin/bash
+# ABOUTME: Start ngrok with static domain for palette-transfer development
+# ABOUTME: Exposes local Flask server to internet for ChatGPT MCP integration
+
+# Usage: ./bin/ngrok [port]
+# Default port: 8080
+
+PORT=${1:-8080}
+
+echo "Starting ngrok for Palette Transfer..."
+echo "   Port: $PORT (Flask server)"
+echo ""
+echo "Note: You need to configure your ngrok static domain below"
+echo "      Get one at: https://dashboard.ngrok.com/cloud-edge/domains"
+echo ""
+
+# TODO: Replace with your own ngrok static domain
+# ngrok http --url=your-static-domain.ngrok-free.app $PORT
+
+# For now, use ephemeral domain
+ngrok http $PORT

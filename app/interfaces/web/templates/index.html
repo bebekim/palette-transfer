@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Palette Transfer - Home{% endblock %}
+
+{% block content %}
+<div class="card" style="text-align: center; padding: 4rem 2rem;">
+    <h1>Palette Transfer</h1>
+    <p style="font-size: 1.2rem; color: #666; margin: 1.5rem 0;">
+        Standardize before/after photos for hair growth clinics.
+    </p>
+    <p style="margin-bottom: 2rem;">
+        Transfer skin tones between images to ensure consistent documentation across patient visits.
+    </p>
+
+    {% if current_user.is_authenticated %}
+        <a href="{{ url_for('web.dashboard') }}" class="btn">Go to Dashboard</a>
+    {% else %}
+        <a href="{{ url_for('web.signup') }}" class="btn">Get Started</a>
+        <a href="{{ url_for('web.login') }}" class="btn btn-secondary">Login</a>
+    {% endif %}
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 2rem;">
+    <div class="card">
+        <h3>Skin-Tone Transfer</h3>
+        <p>Intelligent detection of skin regions with adjustable transfer strength for skin, hair, and background.</p>
+    </div>
+    <div class="card">
+        <h3>Multiple Algorithms</h3>
+        <p>Choose from Reinhard, Hybrid, or Optimized transfer methods depending on your needs.</p>
+    </div>
+    <div class="card">
+        <h3>API Access</h3>
+        <p>RESTful API for integration with existing clinic management systems.</p>
+    </div>
+</div>
+{% endblock %}
