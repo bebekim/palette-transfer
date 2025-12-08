@@ -114,11 +114,12 @@
     <div style="margin-top: 1.5rem;">
         <button id="transfer-btn" class="btn">Transfer Palette</button>
         <button id="compare-btn" class="btn btn-secondary">Compare All Methods</button>
+        <span id="time-estimate" style="margin-left: 1rem; color: #666;"></span>
     </div>
 </div>
 
 <div class="loading" id="loading">
-    <p>Processing...</p>
+    <p>Processing... <span id="loading-estimate"></span></p>
 </div>
 
 <div class="card" id="result-container">
@@ -129,8 +130,26 @@
 
 {% block extra_js %}
 <script>
+    // Image dimensions storage for time estimation
+    const imageDimensions = { source: null, target: null };
+    const MS_PER_MEGAPIXEL = 3000; // ~3 seconds per megapixel based on benchmarks
+
+    function updateTimeEstimate() {
+        const estimate = document.getElementById('time-estimate');
+        if (imageDimensions.source && imageDimensions.target) {
+            const sourceMp = (imageDimensions.source.w * imageDimensions.source.h) / 1_000_000;
+            const targetMp = (imageDimensions.target.w * imageDimensions.target.h) / 1_000_000;
+            const totalMp = sourceMp + targetMp;
+            const estimatedMs = totalMp * MS_PER_MEGAPIXEL;
+            const estimatedSec = Math.round(estimatedMs / 1000);
+            estimate.textContent = `(Est. ~${estimatedSec}s for ${totalMp.toFixed(1)}MP)`;
+        } else {
+            estimate.textContent = '';
+        }
+    }
+
     // File upload handling
-    function setupUpload(uploadId, inputId, previewId) {
+    function setupUpload(uploadId, inputId, previewId, imageType) {
         const upload = document.getElementById(uploadId);
         const input = document.getElementById(inputId);
         const preview = document.getElementById(previewId);
@@ -145,26 +164,38 @@
             e.preventDefault();
             upload.classList.remove('dragover');
             if (e.dataTransfer.files.length) {
-                input.files = e.dataTransfer.files;
-                showPreview(input.files[0], preview);
+                // Use DataTransfer to properly assign files (input.files is read-only)
+                const dt = new DataTransfer();
+                for (const file of e.dataTransfer.files) {
+                    dt.items.add(file);
+                }
+                input.files = dt.files;
+                showPreview(input.files[0], preview, imageType);
             }
         });
         input.addEventListener('change', () => {
-            if (input.files.length) showPreview(input.files[0], preview);
+            if (input.files.length) showPreview(input.files[0], preview, imageType);
         });
     }
 
-    function showPreview(file, previewEl) {
+    function showPreview(file, previewEl, imageType) {
         const reader = new FileReader();
         reader.onload = (e) => {
             previewEl.src = e.target.result;
             previewEl.style.display = 'block';
+            // Get image dimensions for time estimate
+            const img = new Image();
+            img.onload = () => {
+                imageDimensions[imageType] = { w: img.width, h: img.height };
+                updateTimeEstimate();
+            };
+            img.src = e.target.result;
         };
         reader.readAsDataURL(file);
     }
 
-    setupUpload('source-upload', 'source-input', 'source-preview');
-    setupUpload('target-upload', 'target-input', 'target-preview');
+    setupUpload('source-upload', 'source-input', 'source-preview', 'source');
+    setupUpload('target-upload', 'target-input', 'target-preview', 'target');
 
     // Slider value display
     ['skin-blend', 'hair-blend', 'bg-blend'].forEach(id => {
@@ -197,8 +228,18 @@
         formData.append('hair_blend', document.getElementById('hair-blend').value);
         formData.append('bg_blend', document.getElementById('bg-blend').value);
 
-        document.getElementById('loading').classList.add('active');
-        document.getElementById('result-container').classList.remove('active');
+        // Show loading with estimate
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('result-container').style.display = 'none';
+        // Show estimate in loading message
+        const loadingEstimate = document.getElementById('loading-estimate');
+        if (imageDimensions.source && imageDimensions.target) {
+            const sourceMp = (imageDimensions.source.w * imageDimensions.source.h) / 1_000_000;
+            const targetMp = (imageDimensions.target.w * imageDimensions.target.h) / 1_000_000;
+            const totalMp = sourceMp + targetMp;
+            const estimatedSec = Math.round((totalMp * MS_PER_MEGAPIXEL) / 1000);
+            loadingEstimate.textContent = `(~${estimatedSec}s estimated)`;
+        }
 
         try {
             const response = await fetch('/api/transfer', {
@@ -208,7 +249,7 @@
             const data = await response.json();
 
             if (data.success) {
-                document.getElementById('result-content').innerHTML = `
+                const resultHtml = `
                     <div class="result-grid">
                         <div class="result-item">
                             <p><strong>Original</strong></p>
@@ -221,14 +262,17 @@
                         </div>
                     </div>
                 `;
-                document.getElementById('result-container').classList.add('active');
+                document.getElementById('result-content').innerHTML = resultHtml;
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('result-container').style.display = 'block';
+                document.getElementById('result-container').scrollIntoView({ behavior: 'smooth' });
             } else {
+                document.getElementById('loading').style.display = 'none';
                 alert('Error: ' + data.error);
             }
         } catch (err) {
+            document.getElementById('loading').style.display = 'none';
             alert('Request failed: ' + err.message);
-        } finally {
-            document.getElementById('loading').classList.remove('active');
         }
     });
 
