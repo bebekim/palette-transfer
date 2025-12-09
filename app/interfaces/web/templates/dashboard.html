@@ -92,6 +92,16 @@
                 <option value="optimized">Optimized</option>
             </select>
         </div>
+        <div class="form-group">
+            <label for="resize">Image Size</label>
+            <select id="resize">
+                <option value="100">Original (100%)</option>
+                <option value="50" selected>Half (50%) - Recommended</option>
+                <option value="25">Quarter (25%) - Fast</option>
+                <option value="1080">Max 1080p</option>
+                <option value="720">Max 720p</option>
+            </select>
+        </div>
     </div>
 
     <div id="skintone-params">
@@ -132,17 +142,70 @@
 <script>
     // Image dimensions storage for time estimation
     const imageDimensions = { source: null, target: null };
+    const imageDataUrls = { source: null, target: null };
     const MS_PER_MEGAPIXEL = 3000; // ~3 seconds per megapixel based on benchmarks
+
+    // Calculate resized dimensions based on resize option
+    function getResizedDimensions(origW, origH) {
+        const resizeOption = document.getElementById('resize').value;
+        let newW = origW, newH = origH;
+
+        if (resizeOption === '100') {
+            // Original size
+            return { w: origW, h: origH };
+        } else if (resizeOption === '50') {
+            newW = Math.round(origW * 0.5);
+            newH = Math.round(origH * 0.5);
+        } else if (resizeOption === '25') {
+            newW = Math.round(origW * 0.25);
+            newH = Math.round(origH * 0.25);
+        } else {
+            // Max dimension options (1080, 720)
+            const maxDim = parseInt(resizeOption);
+            const maxOrig = Math.max(origW, origH);
+            if (maxOrig > maxDim) {
+                const scale = maxDim / maxOrig;
+                newW = Math.round(origW * scale);
+                newH = Math.round(origH * scale);
+            }
+        }
+        return { w: newW, h: newH };
+    }
+
+    // Resize image using canvas, returns Promise<Blob>
+    function resizeImage(dataUrl, targetW, targetH) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = targetW;
+                canvas.height = targetH;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, targetW, targetH);
+                canvas.toBlob(resolve, 'image/jpeg', 0.92);
+            };
+            img.src = dataUrl;
+        });
+    }
 
     function updateTimeEstimate() {
         const estimate = document.getElementById('time-estimate');
         if (imageDimensions.source && imageDimensions.target) {
-            const sourceMp = (imageDimensions.source.w * imageDimensions.source.h) / 1_000_000;
-            const targetMp = (imageDimensions.target.w * imageDimensions.target.h) / 1_000_000;
+            // Calculate resized dimensions
+            const srcResized = getResizedDimensions(imageDimensions.source.w, imageDimensions.source.h);
+            const tgtResized = getResizedDimensions(imageDimensions.target.w, imageDimensions.target.h);
+            const sourceMp = (srcResized.w * srcResized.h) / 1_000_000;
+            const targetMp = (tgtResized.w * tgtResized.h) / 1_000_000;
             const totalMp = sourceMp + targetMp;
             const estimatedMs = totalMp * MS_PER_MEGAPIXEL;
             const estimatedSec = Math.round(estimatedMs / 1000);
-            estimate.textContent = `(Est. ~${estimatedSec}s for ${totalMp.toFixed(1)}MP)`;
+            const origMp = ((imageDimensions.source.w * imageDimensions.source.h) +
+                           (imageDimensions.target.w * imageDimensions.target.h)) / 1_000_000;
+            if (totalMp < origMp) {
+                estimate.textContent = `(Est. ~${estimatedSec}s for ${totalMp.toFixed(1)}MP, resized from ${origMp.toFixed(1)}MP)`;
+            } else {
+                estimate.textContent = `(Est. ~${estimatedSec}s for ${totalMp.toFixed(1)}MP)`;
+            }
         } else {
             estimate.textContent = '';
         }
@@ -183,6 +246,8 @@
         reader.onload = (e) => {
             previewEl.src = e.target.result;
             previewEl.style.display = 'block';
+            // Store data URL for later resizing
+            imageDataUrls[imageType] = e.target.result;
             // Get image dimensions for time estimate
             const img = new Image();
             img.onload = () => {
@@ -210,38 +275,45 @@
             e.target.value === 'skintone' ? 'block' : 'none';
     });
 
+    // Update estimate when resize option changes
+    document.getElementById('resize').addEventListener('change', updateTimeEstimate);
+
     // Transfer button
     document.getElementById('transfer-btn').addEventListener('click', async () => {
-        const sourceInput = document.getElementById('source-input');
-        const targetInput = document.getElementById('target-input');
-
-        if (!sourceInput.files.length || !targetInput.files.length) {
+        if (!imageDataUrls.source || !imageDataUrls.target) {
             alert('Please upload both source and target images');
             return;
         }
 
-        const formData = new FormData();
-        formData.append('source', sourceInput.files[0]);
-        formData.append('target', targetInput.files[0]);
-        formData.append('method', document.getElementById('method').value);
-        formData.append('skin_blend', document.getElementById('skin-blend').value);
-        formData.append('hair_blend', document.getElementById('hair-blend').value);
-        formData.append('bg_blend', document.getElementById('bg-blend').value);
-
         // Show loading with estimate
         document.getElementById('loading').style.display = 'block';
         document.getElementById('result-container').style.display = 'none';
-        // Show estimate in loading message
+
+        // Calculate resized dimensions and show estimate
+        const srcResized = getResizedDimensions(imageDimensions.source.w, imageDimensions.source.h);
+        const tgtResized = getResizedDimensions(imageDimensions.target.w, imageDimensions.target.h);
         const loadingEstimate = document.getElementById('loading-estimate');
-        if (imageDimensions.source && imageDimensions.target) {
-            const sourceMp = (imageDimensions.source.w * imageDimensions.source.h) / 1_000_000;
-            const targetMp = (imageDimensions.target.w * imageDimensions.target.h) / 1_000_000;
-            const totalMp = sourceMp + targetMp;
-            const estimatedSec = Math.round((totalMp * MS_PER_MEGAPIXEL) / 1000);
-            loadingEstimate.textContent = `(~${estimatedSec}s estimated)`;
-        }
+        const sourceMp = (srcResized.w * srcResized.h) / 1_000_000;
+        const targetMp = (tgtResized.w * tgtResized.h) / 1_000_000;
+        const totalMp = sourceMp + targetMp;
+        const estimatedSec = Math.round((totalMp * MS_PER_MEGAPIXEL) / 1000);
+        loadingEstimate.textContent = `(~${estimatedSec}s estimated)`;
 
         try {
+            // Resize images client-side
+            const [sourceBlob, targetBlob] = await Promise.all([
+                resizeImage(imageDataUrls.source, srcResized.w, srcResized.h),
+                resizeImage(imageDataUrls.target, tgtResized.w, tgtResized.h)
+            ]);
+
+            const formData = new FormData();
+            formData.append('source', sourceBlob, 'source.jpg');
+            formData.append('target', targetBlob, 'target.jpg');
+            formData.append('method', document.getElementById('method').value);
+            formData.append('skin_blend', document.getElementById('skin-blend').value);
+            formData.append('hair_blend', document.getElementById('hair-blend').value);
+            formData.append('bg_blend', document.getElementById('bg-blend').value);
+
             const response = await fetch('/api/transfer', {
                 method: 'POST',
                 body: formData
@@ -258,7 +330,7 @@
                         <div class="result-item">
                             <p><strong>Result (${data.method})</strong></p>
                             <img src="${data.result}">
-                            <p><small>${data.processing_time_ms}ms</small></p>
+                            <p><small>${data.processing_time_ms}ms | ${srcResized.w}x${srcResized.h} + ${tgtResized.w}x${tgtResized.h}</small></p>
                         </div>
                     </div>
                 `;
