@@ -408,3 +408,29 @@ git commit -m "Add API endpoint and refactor validation"
 - **Fix lint issues immediately**: Don't accumulate technical debt
 
 This guide focuses specifically on how Claude Code should behave when implementing the palette transfer SaaS for hair clinics, emphasizing medical software quality standards, AIFSD principles, and strict TDD methodology.
+
+## Future Work
+
+### Background Job Queue for Image Processing
+
+**Problem**: Large image processing (10+ MP) can take 15-60+ seconds, blocking the request and causing poor UX.
+
+**Solution**: Implement background job queue pattern:
+1. User submits transfer request
+2. Server returns immediately with `job_id`
+3. Background worker processes image asynchronously
+4. Client polls `/api/jobs/{job_id}` for status/completion
+5. When done, result is available for download
+
+**Recommended Stack**:
+- **Celery + Redis**: Battle-tested, widely used
+- **RQ (Redis Queue)**: Simpler alternative, pure Python
+- **Dramatiq**: Modern, good defaults
+
+**Implementation Notes**:
+- Keep Flask for MVP (async framework won't speed up CPU-bound numpy/PIL work)
+- Add job status tracking to database (job_id, status, result_url, created_at, completed_at)
+- Consider WebSocket/SSE for real-time progress updates in future
+- Job cleanup: Auto-delete completed jobs after 24 hours
+
+**Current Workaround**: Client-side image resizing (50% default) reduces processing to ~14s for typical images.
