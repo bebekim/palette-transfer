@@ -48,20 +48,22 @@ class TestingConfig(Config):
     WTF_CSRF_ENABLED = False
 
 
+def _get_database_url():
+    """Get database URL, converting postgres:// to postgresql:// for SQLAlchemy."""
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url and database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    return database_url
+
+
 class ProductionConfig(Config):
     """Production configuration."""
 
     DEBUG = False
     SESSION_COOKIE_SECURE = True
 
-    # Require DATABASE_URL in production
     # Railway provides postgres:// but SQLAlchemy needs postgresql://
-    @property
-    def SQLALCHEMY_DATABASE_URI(self):
-        database_url = os.environ.get('DATABASE_URL')
-        if database_url and database_url.startswith('postgres://'):
-            database_url = database_url.replace('postgres://', 'postgresql://', 1)
-        return database_url
+    SQLALCHEMY_DATABASE_URI = _get_database_url()
 
     # Connection pooling for production
     SQLALCHEMY_ENGINE_OPTIONS = {
