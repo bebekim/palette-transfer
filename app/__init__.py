@@ -2,6 +2,7 @@
 # ABOUTME: Registers blueprints, initializes extensions, sets up error handlers
 
 import os
+import sys
 import logging
 from logging.handlers import RotatingFileHandler
 
@@ -9,6 +10,14 @@ from flask import Flask
 
 from app.config import config
 from app.extensions import db, login_manager, migrate, csrf
+
+# Configure logging to stdout for production (Railway, etc.)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s: %(message)s",
+    stream=sys.stdout,
+)
+logger = logging.getLogger(__name__)
 
 
 def create_app(config_name: str | None = None) -> Flask:
@@ -23,8 +32,12 @@ def create_app(config_name: str | None = None) -> Flask:
     if config_name is None:
         config_name = os.environ.get("FLASK_ENV", "development")
 
+    logger.info(f"Creating app with config: {config_name}")
+
     app = Flask(__name__, template_folder="interfaces/web/templates")
     app.config.from_object(config[config_name])
+
+    logger.info(f"Database URI configured: {bool(app.config.get('SQLALCHEMY_DATABASE_URI'))}")
 
     # Initialize extensions
     db.init_app(app)
@@ -45,25 +58,30 @@ def create_app(config_name: str | None = None) -> Flask:
     csrf.exempt(api_bp)  # API uses token auth, not CSRF
 
     # Create database tables
+    logger.info("Creating database tables...")
     with app.app_context():
         # Import models to register them
         from app.infrastructure.database import models  # noqa: F401
         db.create_all()
+    logger.info("Database tables created successfully")
 
-    # Setup logging
+    # Setup file logging (optional - skip if can't write to filesystem)
     if not app.debug and not app.testing:
-        if not os.path.exists("logs"):
-            os.mkdir("logs")
-        file_handler = RotatingFileHandler(
-            "logs/palette_transfer.log",
-            maxBytes=10 * 1024 * 1024,  # 10MB
-            backupCount=10,
-        )
-        file_handler.setFormatter(logging.Formatter(
-            "%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]"
-        ))
-        file_handler.setLevel(logging.INFO)
-        app.logger.addHandler(file_handler)
+        try:
+            if not os.path.exists("logs"):
+                os.mkdir("logs")
+            file_handler = RotatingFileHandler(
+                "logs/palette_transfer.log",
+                maxBytes=10 * 1024 * 1024,  # 10MB
+                backupCount=10,
+            )
+            file_handler.setFormatter(logging.Formatter(
+                "%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]"
+            ))
+            file_handler.setLevel(logging.INFO)
+            app.logger.addHandler(file_handler)
+        except OSError:
+            logger.warning("Could not set up file logging - using stdout only")
         app.logger.setLevel(logging.INFO)
         app.logger.info("Palette Transfer startup")
 
