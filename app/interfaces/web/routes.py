@@ -130,7 +130,10 @@ def login_google():
         flash("Google login is not configured.", "error")
         return redirect(url_for("web.login"))
 
-    redirect_uri = url_for("web.login_google_callback", _external=True)
+    redirect_uri = url_for("web.login_google_callback", _external=True, _scheme='https')
+    # Force HTTPS in production (Railway doesn't pass X-Forwarded-Proto correctly)
+    if redirect_uri.startswith('http://') and 'localhost' not in redirect_uri:
+        redirect_uri = redirect_uri.replace('http://', 'https://', 1)
     return google.authorize_redirect(redirect_uri)
 
 
