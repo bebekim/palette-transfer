@@ -1,8 +1,9 @@
 [build]
-builder = "nixpacks"
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "python -m gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 'app:create_app()'"
+# startCommand is defined in Dockerfile CMD
 healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"

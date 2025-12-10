@@ -27,10 +27,6 @@ COPY . .
 
 # Set environment variables
 ENV FLASK_ENV=production
-ENV PORT=8080
 
-# Expose port
-EXPOSE 8080
-
-# Run with gunicorn (same as railway.toml startCommand)
-CMD ["python", "-m", "gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--timeout", "120", "app:create_app()"]
+# Run with gunicorn - use shell form to expand $PORT at runtime
+CMD gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 120 "app:create_app()"
