@@ -7,6 +7,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.config import config
 from app.extensions import db, login_manager, migrate, csrf, oauth
@@ -36,6 +37,9 @@ def create_app(config_name: str | None = None) -> Flask:
 
     app = Flask(__name__, template_folder="interfaces/web/templates")
     app.config.from_object(config[config_name])
+
+    # Trust proxy headers (Railway, Heroku, etc.) for correct HTTPS detection
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
     logger.info(f"Database URI configured: {bool(app.config.get('SQLALCHEMY_DATABASE_URI'))}")
 
