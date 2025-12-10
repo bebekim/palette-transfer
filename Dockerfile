@@ -29,4 +29,5 @@ COPY . .
 ENV FLASK_ENV=production
 
 # Run with gunicorn - use shell form to expand $PORT at runtime
-CMD gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 120 "app:create_app()"
+# --preload runs create_app() once before forking workers, avoiding race conditions in db.create_all()
+CMD gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 120 --preload "app:create_app()"
