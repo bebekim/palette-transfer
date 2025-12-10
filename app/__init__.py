@@ -9,7 +9,7 @@ from logging.handlers import RotatingFileHandler
 from flask import Flask
 
 from app.config import config
-from app.extensions import db, login_manager, migrate, csrf
+from app.extensions import db, login_manager, migrate, csrf, oauth
 
 # Configure logging to stdout for production (Railway, etc.)
 logging.basicConfig(
@@ -44,6 +44,17 @@ def create_app(config_name: str | None = None) -> Flask:
     login_manager.init_app(app)
     migrate.init_app(app, db)
     csrf.init_app(app)
+    oauth.init_app(app)
+
+    # Register Google OAuth provider
+    if app.config.get('GOOGLE_CLIENT_ID') and app.config.get('GOOGLE_CLIENT_SECRET'):
+        oauth.register(
+            name='google',
+            client_id=app.config['GOOGLE_CLIENT_ID'],
+            client_secret=app.config['GOOGLE_CLIENT_SECRET'],
+            server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+            client_kwargs={'scope': 'openid email profile'},
+        )
 
     # Configure login manager
     login_manager.login_view = "web.login"

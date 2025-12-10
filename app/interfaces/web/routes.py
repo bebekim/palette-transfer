@@ -3,7 +3,7 @@
 
 from datetime import datetime
 
-from flask import render_template, redirect, url_for, flash, request
+from flask import render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, current_user, login_required
 
 from app.interfaces.web import bp
@@ -12,6 +12,7 @@ from app.infrastructure.database.repositories import SQLUserRepository
 from app.infrastructure.database.models import UserModel
 from app.domain.user import UserCreate
 from app.domain.exceptions import ValidationError
+from app.extensions import db, oauth
 
 
 @bp.route("/")
@@ -116,3 +117,84 @@ def logout():
     logout_user()
     flash("You have been logged out.", "info")
     return redirect(url_for("web.index"))
+
+
+@bp.route("/login/google")
+def login_google():
+    """Initiate Google OAuth login."""
+    if current_user.is_authenticated:
+        return redirect(url_for("web.dashboard"))
+
+    google = oauth.create_client('google')
+    if google is None:
+        flash("Google login is not configured.", "error")
+        return redirect(url_for("web.login"))
+
+    redirect_uri = url_for("web.login_google_callback", _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+
+@bp.route("/login/google/callback")
+def login_google_callback():
+    """Handle Google OAuth callback."""
+    google = oauth.create_client('google')
+    if google is None:
+        flash("Google login is not configured.", "error")
+        return redirect(url_for("web.login"))
+
+    try:
+        token = google.authorize_access_token()
+        user_info = token.get('userinfo')
+        if user_info is None:
+            user_info = google.userinfo()
+    except Exception as e:
+        current_app.logger.error(f"OAuth callback error: {e}")
+        flash("Failed to authenticate with Google.", "error")
+        return redirect(url_for("web.login"))
+
+    email = user_info.get('email', '').lower()
+    if not email:
+        flash("Could not retrieve email from Google.", "error")
+        return redirect(url_for("web.login"))
+
+    google_id = user_info.get('sub')
+    name = user_info.get('name')
+    picture = user_info.get('picture')
+
+    # Look up user by email (auto-link strategy)
+    repo = SQLUserRepository()
+    user_model = repo.get_model_by_email(email)
+
+    if user_model is None:
+        # Create new user
+        user_model = UserModel(
+            email=email,
+            oauth_provider='google',
+            oauth_id=google_id,
+            display_name=name,
+            avatar_url=picture,
+            is_verified=True,  # Google verified their email
+        )
+        db.session.add(user_model)
+        db.session.commit()
+        flash("Account created successfully!", "success")
+    else:
+        # Link OAuth if not already linked
+        if user_model.oauth_provider is None:
+            user_model.oauth_provider = 'google'
+            user_model.oauth_id = google_id
+        # Update profile from Google if available
+        if picture and not user_model.avatar_url:
+            user_model.avatar_url = picture
+        if name and not user_model.display_name:
+            user_model.display_name = name
+
+    if not user_model.is_active:
+        flash("Your account has been deactivated.", "error")
+        return redirect(url_for("web.login"))
+
+    user_model.last_login = datetime.utcnow()
+    db.session.commit()
+
+    login_user(user_model, remember=True)
+    return redirect(url_for("web.dashboard"))

@@ -17,7 +17,11 @@ class UserModel(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     username = db.Column(db.String(100), unique=True, nullable=True, index=True)
-    password_hash = db.Column(db.String(255), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=True)  # Nullable for OAuth-only users
+
+    # OAuth
+    oauth_provider = db.Column(db.String(50), nullable=True)  # 'google', etc.
+    oauth_id = db.Column(db.String(255), nullable=True, index=True)  # Provider's user ID
 
     # Profile
     display_name = db.Column(db.String(100), nullable=True)

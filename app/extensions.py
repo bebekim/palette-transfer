@@ -10,6 +10,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
+from authlib.integrations.flask_client import OAuth
 
 # Database
 db = SQLAlchemy()
@@ -25,3 +26,6 @@ migrate = Migrate()
 
 # CSRF protection
 csrf = CSRFProtect()
+
+# OAuth
+oauth = OAuth()
