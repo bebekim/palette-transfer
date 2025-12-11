@@ -78,6 +78,55 @@ class TransferJobModel(db.Model):
         return f"<TransferJobModel {self.id} ({self.status})>"
 
 
+class SurveyImageModel(db.Model):
+    """Survey image pairs for A/B testing."""
+
+    __tablename__ = "survey_images"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)  # e.g., "clinic_a_patient_1"
+
+    # Image paths (relative to static folder)
+    before_image = db.Column(db.String(255), nullable=False)
+    after_image = db.Column(db.String(255), nullable=False)
+
+    # Whether this pair has been normalized
+    is_normalized = db.Column(db.Boolean, default=False)
+
+    # Active flag for inclusion in survey
+    is_active = db.Column(db.Boolean, default=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationship to responses
+    responses = db.relationship("SurveyResponseModel", backref="image_pair", lazy="dynamic")
+
+    def __repr__(self) -> str:
+        return f"<SurveyImageModel {self.name}>"
+
+
+class SurveyResponseModel(db.Model):
+    """Individual survey responses."""
+
+    __tablename__ = "survey_responses"
+
+    id = db.Column(db.Integer, primary_key=True)
+    image_pair_id = db.Column(db.Integer, db.ForeignKey("survey_images.id"), nullable=False, index=True)
+
+    # Response: 'yes', 'no', 'unsure'
+    response = db.Column(db.String(10), nullable=False)
+
+    # Anonymous session tracking (no login required)
+    session_id = db.Column(db.String(64), nullable=False, index=True)
+
+    # Metadata
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user_agent = db.Column(db.String(500), nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<SurveyResponseModel {self.id} ({self.response})>"
+
+
 @login_manager.user_loader
 def load_user(user_id: int) -> UserModel | None:
     """Load user by ID for Flask-Login."""

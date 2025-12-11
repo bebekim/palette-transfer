@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Survey Results{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 900px; margin: 2rem auto;">
+    <h2 style="text-align: center; margin-bottom: 1.5rem;">Survey Results</h2>
+
+    <!-- Summary Stats -->
+    <div style="display: flex; gap: 2rem; justify-content: center; margin-bottom: 2rem; flex-wrap: wrap;">
+        <div style="text-align: center; padding: 1rem; background: #e8f5e9; border-radius: 8px; min-width: 200px;">
+            <h3 style="color: #27ae60; margin-bottom: 0.5rem;">Normalized Photos</h3>
+            {% if normalized_total > 0 %}
+            <p style="font-size: 2rem; font-weight: bold; color: #27ae60;">
+                {{ ((normalized_yes / normalized_total) * 100) | round(1) }}%
+            </p>
+            <p style="color: #666; font-size: 0.9rem;">said "Same Person"</p>
+            <p style="color: #999; font-size: 0.8rem;">({{ normalized_yes }} / {{ normalized_total }} responses)</p>
+            {% else %}
+            <p style="color: #666;">No responses yet</p>
+            {% endif %}
+        </div>
+
+        <div style="text-align: center; padding: 1rem; background: #ffebee; border-radius: 8px; min-width: 200px;">
+            <h3 style="color: #e74c3c; margin-bottom: 0.5rem;">Raw Photos</h3>
+            {% if raw_total > 0 %}
+            <p style="font-size: 2rem; font-weight: bold; color: #e74c3c;">
+                {{ ((raw_yes / raw_total) * 100) | round(1) }}%
+            </p>
+            <p style="color: #666; font-size: 0.9rem;">said "Same Person"</p>
+            <p style="color: #999; font-size: 0.8rem;">({{ raw_yes }} / {{ raw_total }} responses)</p>
+            {% else %}
+            <p style="color: #666;">No responses yet</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if normalized_total > 0 and raw_total > 0 %}
+    <div style="text-align: center; padding: 1rem; background: #f5f5f5; border-radius: 8px; margin-bottom: 2rem;">
+        <p style="font-size: 1.1rem;">
+            <strong>Key Finding:</strong>
+            {% set norm_pct = (normalized_yes / normalized_total * 100) | round(1) %}
+            {% set raw_pct = (raw_yes / raw_total * 100) | round(1) %}
+            {% if norm_pct > raw_pct %}
+            Normalized photos are <strong style="color: #27ae60;">{{ (norm_pct - raw_pct) | round(1) }}%</strong> more believable
+            {% elif raw_pct > norm_pct %}
+            Raw photos are <strong>{{ (raw_pct - norm_pct) | round(1) }}%</strong> more believable
+            {% else %}
+            Both groups are equally believable
+            {% endif %}
+        </p>
+    </div>
+    {% endif %}
+
+    <!-- Detailed Results Table -->
+    <h3 style="margin-bottom: 1rem;">Detailed Results by Image</h3>
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f5f5f5;">
+                    <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #ddd;">Image</th>
+                    <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid #ddd;">Type</th>
+                    <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid #ddd;">Yes</th>
+                    <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid #ddd;">No</th>
+                    <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid #ddd;">Unsure</th>
+                    <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid #ddd;">Total</th>
+                    <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid #ddd;">Trust %</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in stats %}
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 0.75rem;">{{ stat.name }}</td>
+                    <td style="padding: 0.75rem; text-align: center;">
+                        {% if stat.is_normalized %}
+                        <span style="background: #e8f5e9; color: #27ae60; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">Normalized</span>
+                        {% else %}
+                        <span style="background: #ffebee; color: #e74c3c; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">Raw</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.75rem; text-align: center;">{{ stat.yes_count or 0 }}</td>
+                    <td style="padding: 0.75rem; text-align: center;">{{ stat.no_count or 0 }}</td>
+                    <td style="padding: 0.75rem; text-align: center;">{{ stat.unsure_count or 0 }}</td>
+                    <td style="padding: 0.75rem; text-align: center;">{{ stat.total_responses }}</td>
+                    <td style="padding: 0.75rem; text-align: center;">
+                        {% if stat.total_responses > 0 %}
+                        {{ ((stat.yes_count or 0) / stat.total_responses * 100) | round(1) }}%
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="padding: 2rem; text-align: center; color: #666;">
+                        No survey images configured yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div style="margin-top: 2rem; text-align: center;">
+        <a href="{{ url_for('web.survey') }}" class="btn" style="margin-right: 1rem;">Take Survey</a>
+        <a href="{{ url_for('web.dashboard') }}" class="btn" style="background: #7f8c8d;">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Same Person?{% endblock %}
+
+{% block content %}
+<div style="max-width: 700px; margin: 1rem auto; padding: 1rem;">
+
+    {% if image_pair %}
+    <h2 style="text-align: center; margin-bottom: 1rem;">Same person, just later?</h2>
+
+    <div style="display: flex; gap: 0.5rem; justify-content: center; margin-bottom: 1rem;">
+        <div style="flex: 1; max-width: 320px;">
+            <img src="{{ url_for('static', filename=image_pair.before_image) }}"
+                 alt="Before"
+                 style="width: 100%; border-radius: 8px;">
+            <p style="text-align: center; color: #666; margin-top: 0.25rem; font-size: 0.9rem;">Before</p>
+        </div>
+        <div style="flex: 1; max-width: 320px;">
+            <img src="{{ url_for('static', filename=image_pair.after_image) }}"
+                 alt="After"
+                 style="width: 100%; border-radius: 8px;">
+            <p style="text-align: center; color: #666; margin-top: 0.25rem; font-size: 0.9rem;">After</p>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('web.survey_respond') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="image_pair_id" value="{{ image_pair.id }}">
+
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+            <button type="submit" name="response" value="yes"
+                    style="padding: 1rem 2.5rem; font-size: 1.2rem; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                Yes
+            </button>
+            <button type="submit" name="response" value="no"
+                    style="padding: 1rem 2.5rem; font-size: 1.2rem; background: #e74c3c; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                No
+            </button>
+        </div>
+    </form>
+
+    <p style="text-align: center; margin-top: 1rem; color: #999; font-size: 0.85rem;">
+        {{ answered_count }}/{{ total_images }}
+    </p>
+
+    {% else %}
+    <div style="text-align: center; padding: 3rem;">
+        <h2>Done!</h2>
+        <p style="color: #666; margin: 1rem 0;">Thanks for participating.</p>
+        <a href="{{ url_for('web.index') }}" style="color: #3498db;">Back to Home</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

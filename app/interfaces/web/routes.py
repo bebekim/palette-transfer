@@ -1,15 +1,16 @@
 # ABOUTME: Web routes - HTML views for browser interface
 # ABOUTME: Handles page rendering and form-based interactions
 
+import secrets
 from datetime import datetime
 
-from flask import render_template, redirect, url_for, flash, request, current_app
+from flask import render_template, redirect, url_for, flash, request, current_app, session
 from flask_login import login_user, logout_user, current_user, login_required
 
 from app.interfaces.web import bp
 from app.interfaces.api.deps import get_user_service
 from app.infrastructure.database.repositories import SQLUserRepository
-from app.infrastructure.database.models import UserModel
+from app.infrastructure.database.models import UserModel, SurveyImageModel, SurveyResponseModel
 from app.domain.user import UserCreate
 from app.domain.exceptions import ValidationError
 from app.extensions import db, oauth
@@ -201,3 +202,116 @@ def login_google_callback():
 
     login_user(user_model, remember=True)
     return redirect(url_for("web.dashboard"))
+
+
+@bp.route("/survey")
+def survey():
+    """Survey page - ask if before/after photos show same person."""
+    # Get or create anonymous session ID
+    if 'survey_session_id' not in session:
+        session['survey_session_id'] = secrets.token_hex(32)
+
+    session_id = session['survey_session_id']
+
+    # Get IDs of images this session has already responded to
+    responded_ids = db.session.query(SurveyResponseModel.image_pair_id).filter(
+        SurveyResponseModel.session_id == session_id
+    ).scalar_subquery()
+
+    # Get a random active image pair that hasn't been answered
+    image_pair = SurveyImageModel.query.filter(
+        SurveyImageModel.is_active == True,  # noqa: E712
+        SurveyImageModel.id.not_in(responded_ids)
+    ).order_by(db.func.random()).first()
+
+    # Count progress
+    total_images = SurveyImageModel.query.filter_by(is_active=True).count()
+    answered_count = SurveyResponseModel.query.filter_by(session_id=session_id).count()
+
+    return render_template(
+        "survey/index.html",
+        image_pair=image_pair,
+        answered_count=answered_count,
+        total_images=total_images,
+    )
+
+
+@bp.route("/survey/respond", methods=["POST"])
+def survey_respond():
+    """Record survey response."""
+    if 'survey_session_id' not in session:
+        flash("Session expired. Please start again.", "error")
+        return redirect(url_for("web.survey"))
+
+    image_pair_id = request.form.get("image_pair_id", type=int)
+    response = request.form.get("response")
+
+    if not image_pair_id or response not in ('yes', 'no', 'unsure'):
+        flash("Invalid response.", "error")
+        return redirect(url_for("web.survey"))
+
+    # Check if already responded (prevent duplicates)
+    existing = SurveyResponseModel.query.filter_by(
+        session_id=session['survey_session_id'],
+        image_pair_id=image_pair_id
+    ).first()
+
+    if existing:
+        flash("Already answered this one.", "info")
+        return redirect(url_for("web.survey"))
+
+    # Record response
+    survey_response = SurveyResponseModel(
+        image_pair_id=image_pair_id,
+        response=response,
+        session_id=session['survey_session_id'],
+        user_agent=request.headers.get('User-Agent', '')[:500],
+    )
+    db.session.add(survey_response)
+    db.session.commit()
+
+    return redirect(url_for("web.survey"))
+
+
+@bp.route("/survey/results")
+@login_required
+def survey_results():
+    """Survey results page (admin only)."""
+    # Get aggregated stats per image pair
+    from sqlalchemy import func
+
+    stats = db.session.query(
+        SurveyImageModel.id,
+        SurveyImageModel.name,
+        SurveyImageModel.is_normalized,
+        func.count(SurveyResponseModel.id).label('total_responses'),
+        func.sum(db.case((SurveyResponseModel.response == 'yes', 1), else_=0)).label('yes_count'),
+        func.sum(db.case((SurveyResponseModel.response == 'no', 1), else_=0)).label('no_count'),
+        func.sum(db.case((SurveyResponseModel.response == 'unsure', 1), else_=0)).label('unsure_count'),
+    ).outerjoin(SurveyResponseModel).group_by(
+        SurveyImageModel.id
+    ).all()
+
+    # Calculate overall stats
+    normalized_yes = 0
+    normalized_total = 0
+    raw_yes = 0
+    raw_total = 0
+
+    for stat in stats:
+        if stat.total_responses > 0:
+            if stat.is_normalized:
+                normalized_yes += stat.yes_count or 0
+                normalized_total += stat.total_responses
+            else:
+                raw_yes += stat.yes_count or 0
+                raw_total += stat.total_responses
+
+    return render_template(
+        "survey/results.html",
+        stats=stats,
+        normalized_yes=normalized_yes,
+        normalized_total=normalized_total,
+        raw_yes=raw_yes,
+        raw_total=raw_total,
+    )

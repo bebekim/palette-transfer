@@ -157,6 +157,11 @@ CLOSED: [2025-01-19]
 
 * Future SaaS Development (Post-Canva Integration)
 
+** TODO GitHub Actions CI/CD
+- [ ] Create GitHub Actions workflow for running tests on push/PR
+- [ ] Configure Railway to deploy only after GitHub Actions pass
+- [ ] Add linting (ruff) and type checking to CI pipeline
+
 ** TODO Web API Integration
 - [ ] Create Flask application structure
 - [ ] Implement RESTful endpoints for each algorithm
